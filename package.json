@@ -77,6 +77,14 @@
     "bun",
     "node"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sockudo/sockudo-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sockudo/sockudo-js/issues"
+  },
+  "homepage": "https://github.com/sockudo/sockudo-js#readme",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
