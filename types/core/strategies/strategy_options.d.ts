@@ -1,5 +1,6 @@
 import Timeline from '../timeline/timeline';
 interface StrategyOptions {
+    echoMessages?: boolean;
     failFast?: boolean;
     hostNonTLS?: string;
     hostTLS?: string;

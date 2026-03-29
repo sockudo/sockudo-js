@@ -1,11 +1,16 @@
 import PrivateChannel from "./private_channel";
 import Logger from "../logger";
 import Members from "./members";
-import Pusher from "../pusher";
+import Sockudo from "../sockudo";
 import UrlStore from "core/utils/url_store";
-import { PusherEvent } from "../connection/protocol/message-types";
+import { SockudoEvent } from "../connection/protocol/message-types";
 import Metadata from "./metadata";
 import { ChannelAuthorizationData } from "../auth/options";
+import {
+  prefixedEvent,
+  prefixedInternal,
+  isInternalEvent,
+} from "../protocol_prefix";
 
 export default class PresenceChannel extends PrivateChannel {
   members: Members;
@@ -13,10 +18,10 @@ export default class PresenceChannel extends PrivateChannel {
   /** Adds presence channel functionality to private channels.
    *
    * @param {String} name
-   * @param {Pusher} pusher
+   * @param {Sockudo} sockudo
    */
-  constructor(name: string, pusher: Pusher) {
-    super(name, pusher);
+  constructor(name: string, sockudo: Sockudo) {
+    super(name, sockudo);
     this.members = new Members();
   }
 
@@ -33,11 +38,11 @@ export default class PresenceChannel extends PrivateChannel {
           const channelData = JSON.parse(authData.channel_data);
           this.members.setMyID(channelData.user_id);
         } else {
-          await this.pusher.user.signinDonePromise;
-          if (this.pusher.user.user_data != null) {
+          await this.sockudo.user.signinDonePromise;
+          if (this.sockudo.user.user_data != null) {
             // If the user is signed in, get the id of the authenticated user
             // and allow the presence authorization to continue.
-            this.members.setMyID(this.pusher.user.user_data.id);
+            this.members.setMyID(this.sockudo.user.user_data.id);
           } else {
             let suffix = UrlStore.buildLogSuffix("authorizationEndpoint");
             Logger.error(
@@ -56,11 +61,11 @@ export default class PresenceChannel extends PrivateChannel {
 
   /** Handles presence and subscription events. For internal use only.
    *
-   * @param {PusherEvent} event
+   * @param {SockudoEvent} event
    */
-  handleEvent(event: PusherEvent) {
+  handleEvent(event: SockudoEvent) {
     const eventName = event.event;
-    if (eventName.indexOf("pusher_internal:") === 0) {
+    if (isInternalEvent(eventName)) {
       this.handleInternalEvent(event);
     } else {
       const data = event.data;
@@ -71,37 +76,37 @@ export default class PresenceChannel extends PrivateChannel {
       this.emit(eventName, data, metadata);
     }
   }
-  handleInternalEvent(event: PusherEvent) {
+  handleInternalEvent(event: SockudoEvent) {
     const eventName = event.event;
     const data = event.data;
     switch (eventName) {
-      case "pusher_internal:subscription_succeeded":
+      case prefixedInternal("subscription_succeeded"):
         this.handleSubscriptionSucceededEvent(event);
         break;
-      case "pusher_internal:subscription_count":
+      case prefixedInternal("subscription_count"):
         this.handleSubscriptionCountEvent(event);
         break;
-      case "pusher_internal:member_added":
+      case prefixedInternal("member_added"):
         const addedMember = this.members.addMember(data);
-        this.emit("pusher:member_added", addedMember);
+        this.emit(prefixedEvent("member_added"), addedMember);
         break;
-      case "pusher_internal:member_removed":
+      case prefixedInternal("member_removed"):
         const removedMember = this.members.removeMember(data);
         if (removedMember) {
-          this.emit("pusher:member_removed", removedMember);
+          this.emit(prefixedEvent("member_removed"), removedMember);
         }
         break;
     }
   }
 
-  handleSubscriptionSucceededEvent(event: PusherEvent) {
+  handleSubscriptionSucceededEvent(event: SockudoEvent) {
     this.subscriptionPending = false;
     this.subscribed = true;
     if (this.subscriptionCancelled) {
-      this.pusher.unsubscribe(this.name);
+      this.sockudo.unsubscribe(this.name);
     } else {
       this.members.onSubscription(event.data);
-      this.emit("pusher:subscription_succeeded", this.members);
+      this.emit(prefixedEvent("subscription_succeeded"), this.members);
     }
   }
 

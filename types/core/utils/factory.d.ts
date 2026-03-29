@@ -13,7 +13,7 @@ import Channel from '../channels/channel';
 import ConnectionManager from '../connection/connection_manager';
 import ConnectionManagerOptions from '../connection/connection_manager_options';
 import Channels from '../channels/channels';
-import Pusher from '../pusher';
+import Pusher from '../sockudo';
 import * as nacl from 'tweetnacl';
 declare var Factory: {
     createChannels(): Channels;

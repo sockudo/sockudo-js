@@ -1,14 +1,15 @@
 /**
  * Delta Compression Manager
  *
- * Handles delta compression for Pusher messages with support for:
+ * Handles delta compression for Sockudo messages with support for:
  * - Multiple delta algorithms (Fossil, Xdelta3)
  * - Conflation keys for efficient per-entity caching
  * - Bandwidth statistics tracking
  */
 
 import Logger from "../logger";
-import { PusherEvent } from "../connection/protocol/message-types";
+import { SockudoEvent } from "../connection/protocol/message-types";
+import { prefixedEvent } from "../protocol_prefix";
 import ChannelState from "./channel_state";
 import { FossilDeltaDecoder, Xdelta3Decoder, base64ToBytes } from "./decoders";
 import {
@@ -113,7 +114,7 @@ export default class DeltaCompressionManager {
 
     // Send enable request
     this.log("Sending enable request", supportedAlgorithms);
-    this.sendEventCallback("pusher:enable_delta_compression", {
+    this.sendEventCallback(prefixedEvent("enable_delta_compression"), {
       algorithms: supportedAlgorithms,
     });
   }
@@ -166,7 +167,7 @@ export default class DeltaCompressionManager {
   handleDeltaMessage(
     channel: string,
     deltaData: DeltaMessage,
-  ): PusherEvent | null {
+  ): SockudoEvent | null {
     let deltaBytes: Uint8Array | null = null;
 
     try {
@@ -358,11 +359,11 @@ export default class DeltaCompressionManager {
       this.channelStates.set(channel, channelState);
     }
 
-    // The rawMessage is already stripped of __delta_seq and __conflation_key by pusher.ts
+    // The rawMessage is already stripped of __delta_seq and __conflation_key by sockudo.ts
     // We use it directly as the base - NO re-parsing/re-stringifying to preserve exact bytes
     // (JSON.parse/stringify can change float representations which breaks delta checksums)
 
-    // Use the provided conflationKey parameter (already extracted by pusher.ts from original message)
+    // Use the provided conflationKey parameter (already extracted by sockudo.ts from original message)
     const finalConflationKey = conflationKey;
 
     // Initialize conflation if we have a conflation key
@@ -406,7 +407,7 @@ export default class DeltaCompressionManager {
    */
   private requestResync(channel: string): void {
     this.log("Requesting resync for channel", channel);
-    this.sendEventCallback("pusher:delta_sync_error", { channel });
+    this.sendEventCallback(prefixedEvent("delta_sync_error"), { channel });
     this.channelStates.delete(channel);
   }
 

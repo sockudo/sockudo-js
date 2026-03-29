@@ -3,6 +3,8 @@ export interface URLSchemeParams {
   hostTLS: string;
   hostNonTLS: string;
   httpPath: string;
+  echoMessages?: boolean;
+  wireFormat?: "json" | "messagepack" | "msgpack" | "protobuf" | "proto";
 }
 
 interface URLScheme {

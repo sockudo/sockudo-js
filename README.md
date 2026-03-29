@@ -1,12 +1,13 @@
 # @sockudo/client
 
-Modernized `pusher-js`-compatible client for Sockudo.
-
-This package keeps the familiar Pusher client API while shipping modern runtime targets:
+Sockudo JavaScript client SDK with modern runtime targets:
 - Web
 - Node.js
 - Web Worker
+- React hooks
+- Vue composables
 - React Native
+- NativeScript
 
 ## Install
 
@@ -26,32 +27,41 @@ Use the entrypoint that matches your runtime:
 
 ```ts
 // Browser / default
-import Pusher from "@sockudo/client";
+import Sockudo from "@sockudo/client";
 
 // Filter helper entrypoint
 import { Filter } from "@sockudo/client/filter";
 
 // With encryption
-import PusherEncrypted from "@sockudo/client/with-encryption";
+import SockudoEncrypted from "@sockudo/client/with-encryption";
 
 // Worker
-import WorkerPusher from "@sockudo/client/worker";
+import WorkerSockudo from "@sockudo/client/worker";
 
 // Worker with encryption
 import WorkerEncrypted from "@sockudo/client/worker/with-encryption";
 
+// React hooks
+import { SockudoProvider, useChannel } from "@sockudo/client/react";
+
+// Vue composables
+import { createSockudoPlugin, useChannel as useSockudoChannel } from "@sockudo/client/vue";
+
 // React Native
-import ReactNativePusher from "@sockudo/client/react-native";
+import ReactNativeSockudo from "@sockudo/client/react-native";
+
+// NativeScript
+import NativeScriptSockudo from "@sockudo/client/nativescript";
 ```
 
-The package also exposes runtime-aware fields in `package.json` (`main`, `browser`, `react-native`, `exports`) so bundlers can resolve correctly.
+The package also exposes runtime-aware fields in `package.json` (`main`, `browser`, `react-native`, `nativescript`, `exports`) so bundlers can resolve correctly.
 
 ## Quick Start
 
 ```ts
-import Pusher from "@sockudo/client";
+import Sockudo from "@sockudo/client";
 
-const pusher = new Pusher("app-key", {
+const sockudo = new Sockudo("app-key", {
   wsHost: "your-sockudo-host",
   wsPort: 6001,
   wssPort: 6001,
@@ -59,7 +69,7 @@ const pusher = new Pusher("app-key", {
   enabledTransports: ["ws", "wss"],
 });
 
-const channel = pusher.subscribe("public-updates");
+const channel = sockudo.subscribe("public-updates");
 channel.bind("message", (payload: unknown) => {
   console.log(payload);
 });
@@ -67,19 +77,127 @@ channel.bind("message", (payload: unknown) => {
 
 ## Features
 
-- Pusher-compatible client surface
+- Pusher-protocol-compatible client surface
 - WebSocket-first connection strategy
 - Fetch-first auth/timeline integrations
 - ESM-first package outputs
-- Runtime-specific builds for web/node/worker/react-native
+- Runtime-specific builds for web/node/worker/react-native/nativescript
+- Built-in React hooks via `@sockudo/client/react`
+- Built-in Vue composables via `@sockudo/client/vue`
+
+## React Hooks
+
+Install the framework peer dependencies:
+
+```bash
+npm install @sockudo/client react react-dom
+```
+
+```ts
+import React from "react";
+import Sockudo from "@sockudo/client";
+import { SockudoProvider, useChannel } from "@sockudo/client/react";
+
+const client = new Sockudo("app-key", {
+  wsHost: "127.0.0.1",
+  wsPort: 6001,
+  forceTLS: false,
+});
+
+client.connect();
+
+function PresencePanel() {
+  const { subscribed, members } = useChannel("presence-room");
+
+  return (
+    <div>
+      <div>Subscribed: {String(subscribed)}</div>
+      <div>Members: {members?.length ?? 0}</div>
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <SockudoProvider client={client}>
+      <PresencePanel />
+    </SockudoProvider>
+  );
+}
+```
+
+Available React exports:
+- `SockudoProvider`
+- `useSockudo`
+- `useSockudoEvent`
+- `useChannel`
+- `usePresenceChannel`
+
+## Vue Composables
+
+Install the framework peer dependency:
+
+```bash
+npm install @sockudo/client vue
+```
+
+```ts
+import { createApp, defineComponent, h } from "vue";
+import Sockudo from "@sockudo/client";
+import { createSockudoPlugin, useChannel } from "@sockudo/client/vue";
+
+const client = new Sockudo("app-key", {
+  wsHost: "127.0.0.1",
+  wsPort: 6001,
+  forceTLS: false,
+});
+
+client.connect();
+
+const PresencePanel = defineComponent({
+  setup() {
+    const { subscribed, members } = useChannel("presence-room");
+    return () =>
+      h("div", [
+        h("div", `Subscribed: ${String(subscribed.value)}`),
+        h("div", `Members: ${members.value?.length ?? 0}`),
+      ]);
+  },
+});
+
+createApp(PresencePanel).use(createSockudoPlugin(client)).mount("#app");
+```
+
+Available Vue exports:
+- `createSockudoPlugin`
+- `provideSockudo`
+- `useSockudo`
+- `useSockudoEvent`
+- `useChannel`
+- `usePresenceChannel`
 
 ## React Native Notes
 
-- React Native build output is `dist/react-native/pusher.js`
+- React Native build output is `dist/react-native/sockudo.js`
 - Package exposes both:
   - root `react-native` resolution
   - explicit `@sockudo/client/react-native` subpath
 - `@react-native-community/netinfo` is an optional peer dependency
+- React Native support remains inside `@sockudo/client`; React and Vue integrations stay as subpath exports in the same package
+
+## NativeScript Notes
+
+- Install the NativeScript websocket polyfill:
+
+```bash
+npm install @sockudo/client @valor/nativescript-websockets
+```
+
+- Import `@sockudo/client/nativescript` to automatically load the websocket polyfill before the SDK.
+- NativeScript build output is `dist/nativescript/sockudo.js`
+- Package exposes both:
+  - root `nativescript` resolution
+  - explicit `@sockudo/client/nativescript` subpath
 
 ## Development
 

@@ -3,6 +3,7 @@ export interface URLSchemeParams {
     hostTLS: string;
     hostNonTLS: string;
     httpPath: string;
+    echoMessages?: boolean;
 }
 interface URLScheme {
     getInitial(key: string, params: any): string;

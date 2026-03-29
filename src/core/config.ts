@@ -31,11 +31,13 @@ export interface Config {
   wsPath: string;
   wsPort: number;
   wssPort: number;
+  wireFormat?: "json" | "messagepack" | "msgpack" | "protobuf" | "proto";
   userAuthenticator: UserAuthenticationHandler;
   channelAuthorizer: ChannelAuthorizationHandler;
 
   // these are all optional parameters or overrrides. The customer can set these
   // but it's not strictly necessary
+  echoMessages?: boolean;
   forceTLS?: boolean;
   cluster?: string;
   disabledTransports?: Transport[];
@@ -46,7 +48,7 @@ export interface Config {
 }
 
 // getConfig mainly sets the defaults for the options that are not provided
-export function getConfig(opts: Options, pusher): Config {
+export function getConfig(opts: Options, sockudo): Config {
   let config: Config = {
     activityTimeout: opts.activityTimeout || Defaults.activityTimeout,
     cluster: opts.cluster,
@@ -66,9 +68,10 @@ export function getConfig(opts: Options, pusher): Config {
     wsHost: getWebsocketHost(opts),
 
     userAuthenticator: buildUserAuthenticator(opts),
-    channelAuthorizer: buildChannelAuthorizer(opts, pusher),
+    channelAuthorizer: buildChannelAuthorizer(opts, sockudo),
   };
 
+  if ("echoMessages" in opts) config.echoMessages = opts.echoMessages;
   if ("disabledTransports" in opts)
     config.disabledTransports = opts.disabledTransports;
   if ("enabledTransports" in opts)
@@ -76,6 +79,7 @@ export function getConfig(opts: Options, pusher): Config {
   if ("ignoreNullOrigin" in opts)
     config.ignoreNullOrigin = opts.ignoreNullOrigin;
   if ("timelineParams" in opts) config.timelineParams = opts.timelineParams;
+  if ("wireFormat" in opts) config.wireFormat = opts.wireFormat;
   if ("nacl" in opts) {
     config.nacl = opts.nacl;
   }
@@ -88,7 +92,7 @@ function getHttpHost(opts: Options): string {
     return opts.httpHost;
   }
   if (opts.cluster) {
-    return `sockjs-${opts.cluster}.pusher.com`;
+    return `sockjs-${opts.cluster}.sockudo.com`;
   }
   return Defaults.httpHost;
 }
@@ -101,7 +105,7 @@ function getWebsocketHost(opts: Options): string {
 }
 
 function getWebsocketHostFromCluster(cluster: string): string {
-  return `ws-${cluster}.pusher.com`;
+  return `ws-${cluster}.sockudo.com`;
 }
 
 function shouldUseTLS(opts: Options): boolean {
@@ -141,7 +145,7 @@ function buildUserAuthenticator(opts: Options): UserAuthenticationHandler {
   return UserAuthenticator(userAuthentication);
 }
 
-function buildChannelAuth(opts: Options, pusher): ChannelAuthorizationOptions {
+function buildChannelAuth(opts: Options, sockudo): ChannelAuthorizationOptions {
   let channelAuthorization: ChannelAuthorizationOptions;
   if ("channelAuthorization" in opts) {
     channelAuthorization = {
@@ -160,7 +164,7 @@ function buildChannelAuth(opts: Options, pusher): ChannelAuthorizationOptions {
     }
     if ("authorizer" in opts)
       channelAuthorization.customHandler = ChannelAuthorizerProxy(
-        pusher,
+        sockudo,
         channelAuthorization,
         opts.authorizer,
       );
@@ -170,9 +174,9 @@ function buildChannelAuth(opts: Options, pusher): ChannelAuthorizationOptions {
 
 function buildChannelAuthorizer(
   opts: Options,
-  pusher,
+  sockudo,
 ): ChannelAuthorizationHandler {
-  const channelAuthorization = buildChannelAuth(opts, pusher);
+  const channelAuthorization = buildChannelAuth(opts, sockudo);
   if (
     "customHandler" in channelAuthorization &&
     channelAuthorization["customHandler"] != null

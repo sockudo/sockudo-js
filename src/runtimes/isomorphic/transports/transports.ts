@@ -21,12 +21,16 @@ const WSTransport = new Transport(<TransportHooks>{
   isSupported: function (): boolean {
     return Boolean(getWebSocketConstructor());
   },
-  getSocket: function (url) {
+  getSocket: function (url, options) {
     const Constructor = getWebSocketConstructor();
     if (!Constructor) {
       throw new Error("WebSocket is not available in this environment.");
     }
-    return new Constructor(url);
+    const socket = new Constructor(url);
+    if (options?.wireFormat && options.wireFormat !== "json") {
+      (socket as any).binaryType = "arraybuffer";
+    }
+    return socket;
   },
 });
 

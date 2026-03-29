@@ -25,9 +25,9 @@ const Runtime: Browser = {
     return window.WebSocket || window.MozWebSocket;
   },
 
-  setup(PusherClass): void {
-    (window as any).Pusher = PusherClass;
-    this.onDocumentBody(PusherClass.ready);
+  setup(SockudoClass): void {
+    (window as any).Sockudo = SockudoClass;
+    this.onDocumentBody(SockudoClass.ready);
   },
 
   getDocument(): Document {

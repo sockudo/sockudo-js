@@ -12,8 +12,8 @@ const Isomorphic: any = {
   transportConnectionInitializer,
   HTTPFactory,
 
-  setup(PusherClass): void {
-    PusherClass.ready();
+  setup(SockudoClass): void {
+    SockudoClass.ready();
   },
 
   getLocalStorage(): any {

@@ -5,7 +5,7 @@ import TransportConnection from "../../transports/transport_connection";
 import HandshakePayload from "./handshake_payload";
 
 /**
- * Handles Pusher protocol handshakes for transports.
+ * Handles Sockudo protocol handshakes for transports.
  *
  * Calls back with a result object after handshake is completed. Results
  * always have two fields:

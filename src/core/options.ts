@@ -23,7 +23,13 @@ export interface Options {
   userAuthentication?: UserAuthenticationOptions;
 
   cluster: string;
+  protocolVersion?: number;
+  wireFormat?: "json" | "messagepack" | "msgpack" | "protobuf" | "proto";
   deltaCompression?: DeltaOptions;
+  messageDeduplication?: boolean;
+  messageDeduplicationCapacity?: number;
+  connectionRecovery?: boolean;
+  echoMessages?: boolean;
   enableStats?: boolean;
   disableStats?: boolean;
   disabledTransports?: Transport[];

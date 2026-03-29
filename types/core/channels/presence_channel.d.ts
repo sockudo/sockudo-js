@@ -1,6 +1,6 @@
 import PrivateChannel from './private_channel';
 import Members from './members';
-import Pusher from '../pusher';
+import Pusher from '../sockudo';
 import { PusherEvent } from '../connection/protocol/message-types';
 export default class PresenceChannel extends PrivateChannel {
     members: Members;

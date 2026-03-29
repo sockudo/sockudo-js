@@ -1,4 +1,4 @@
-import Pusher from "./pusher";
+import Sockudo from "./sockudo";
 import Logger from "./logger";
 import {
   UserAuthenticationData,
@@ -8,9 +8,14 @@ import Channel from "./channels/channel";
 import WatchlistFacade from "./watchlist";
 import EventsDispatcher from "./events/dispatcher";
 import flatPromise from "./utils/flat_promise";
+import {
+  prefixedEvent,
+  isInternalEvent,
+  isPlatformEvent,
+} from "./protocol_prefix";
 
 export default class UserFacade extends EventsDispatcher {
-  pusher: Pusher;
+  sockudo: Sockudo;
   signin_requested: boolean = false;
   user_data: any = null;
   serverToUserChannel: Channel = null;
@@ -18,12 +23,12 @@ export default class UserFacade extends EventsDispatcher {
   watchlist: WatchlistFacade;
   private _signinDoneResolve: (...args: any[]) => any = null;
 
-  public constructor(pusher: Pusher) {
+  public constructor(sockudo: Sockudo) {
     super(function (eventName, _data) {
       Logger.debug("No callbacks on user for " + eventName);
     });
-    this.pusher = pusher;
-    this.pusher.connection.bind("state_change", ({ previous, current }) => {
+    this.sockudo = sockudo;
+    this.sockudo.connection.bind("state_change", ({ previous, current }) => {
       if (previous !== "connected" && current === "connected") {
         this._signin();
       }
@@ -33,11 +38,11 @@ export default class UserFacade extends EventsDispatcher {
       }
     });
 
-    this.watchlist = new WatchlistFacade(pusher);
+    this.watchlist = new WatchlistFacade(sockudo);
 
-    this.pusher.connection.bind("message", (event) => {
+    this.sockudo.connection.bind("message", (event) => {
       const eventName = event.event;
-      if (eventName === "pusher:signin_success") {
+      if (eventName === prefixedEvent("signin_success")) {
         this._onSigninSuccess(event.data);
       }
       if (
@@ -65,14 +70,14 @@ export default class UserFacade extends EventsDispatcher {
 
     this._newSigninPromiseIfNeeded();
 
-    if (this.pusher.connection.state !== "connected") {
+    if (this.sockudo.connection.state !== "connected") {
       // Signin will be attempted when the connection is connected
       return;
     }
 
-    this.pusher.config.userAuthenticator(
+    this.sockudo.config.userAuthenticator(
       {
-        socketId: this.pusher.connection.socket_id,
+        socketId: this.sockudo.connection.socket_id,
       },
       this._onAuthorize,
     );
@@ -88,12 +93,12 @@ export default class UserFacade extends EventsDispatcher {
       return;
     }
 
-    this.pusher.send_event("pusher:signin", {
+    this.sockudo.send_event(prefixedEvent("signin"), {
       auth: authData.auth,
       user_data: authData.user_data,
     });
 
-    // Later when we get pusher:singin_success event, the user will be marked as signed in
+    // Later when we get signin_success event, the user will be marked as signed in
   };
 
   private _onSigninSuccess(data: any) {
@@ -124,7 +129,7 @@ export default class UserFacade extends EventsDispatcher {
         channel.reinstateSubscription();
       } else if (
         !channel.subscriptionPending &&
-        this.pusher.connection.state === "connected"
+        this.sockudo.connection.state === "connected"
       ) {
         channel.subscribe();
       }
@@ -132,13 +137,10 @@ export default class UserFacade extends EventsDispatcher {
 
     this.serverToUserChannel = new Channel(
       `#server-to-user-${this.user_data.id}`,
-      this.pusher,
+      this.sockudo,
     );
     this.serverToUserChannel.bind_global((eventName, data) => {
-      if (
-        eventName.indexOf("pusher_internal:") === 0 ||
-        eventName.indexOf("pusher:") === 0
-      ) {
+      if (isInternalEvent(eventName) || isPlatformEvent(eventName)) {
         // ignore internal events
         return;
       }

@@ -12,7 +12,7 @@ import TransportConnectionOptions from "./transport_connection_options";
  *
  * Transport connection is a low-level object that wraps a connection method
  * and exposes a simple evented interface for the connection state and
- * messaging. It does not implement Pusher-specific WebSocket protocol.
+ * messaging. It does not implement Sockudo-specific WebSocket protocol.
  *
  * Additionally, it fetches resources needed for transport to work and exposes
  * an interface for querying transport features.

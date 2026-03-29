@@ -25,7 +25,7 @@ export {
   FilterExamples,
 } from './types/core/channels/filter';
 
-export { default } from './types/core/pusher';
+export { default } from './types/core/sockudo';
 
 // The following types are provided for backward compatibility
 export {

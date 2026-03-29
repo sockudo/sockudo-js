@@ -1,2 +1,2 @@
-import PusherClass from './core/pusher';
+import PusherClass from './core/sockudo';
 export default PusherClass;
