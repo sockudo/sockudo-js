@@ -106,7 +106,7 @@ export default class WebSocketPrioritizedCachedStrategy implements Strategy {
 }
 
 function getTransportCacheKey(usingTLS: boolean): string {
-  return "pusherTransport" + (usingTLS ? "TLS" : "NonTLS");
+  return "sockudoTransport" + (usingTLS ? "TLS" : "NonTLS");
 }
 
 function fetchTransportCache(usingTLS: boolean): any {

@@ -1,6 +1,6 @@
 import { stringify } from "./utils/collections";
 
-// Logger configuration - can be set by Pusher class
+// Logger configuration - can be set by Sockudo class
 export interface LoggerConfig {
   log?: (message: string) => void;
   logToConsole?: boolean;

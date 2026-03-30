@@ -1,5 +1,5 @@
 import PrivateChannel from './private_channel';
-import Pusher from '../pusher';
+import Pusher from '../sockudo';
 import { PusherEvent } from '../connection/protocol/message-types';
 import { ChannelAuthorizationCallback } from '../auth/options';
 import * as nacl from 'tweetnacl';

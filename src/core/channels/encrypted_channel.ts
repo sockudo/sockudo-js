@@ -1,27 +1,28 @@
 import PrivateChannel from "./private_channel";
 import * as Errors from "../errors";
 import Logger from "../logger";
-import Pusher from "../pusher";
+import Sockudo from "../sockudo";
 import { decode as encodeUTF8 } from "@stablelib/utf8";
 import { decode as decodeBase64 } from "@stablelib/base64";
-import { PusherEvent } from "../connection/protocol/message-types";
+import { SockudoEvent } from "../connection/protocol/message-types";
 import {
   ChannelAuthorizationData,
   ChannelAuthorizationCallback,
 } from "../auth/options";
 import * as nacl from "tweetnacl";
+import { isInternalEvent, isPlatformEvent } from "../protocol_prefix";
 
 /** Extends private channels to provide encrypted channel interface.
  *
  * @param {String} name
- * @param {Pusher} pusher
+ * @param {Sockudo} sockudo
  */
 export default class EncryptedChannel extends PrivateChannel {
   key: Uint8Array = null;
   nacl: nacl;
 
-  constructor(name: string, pusher: Pusher, nacl: nacl) {
-    super(name, pusher);
+  constructor(name: string, sockudo: Sockudo, nacl: nacl) {
+    super(name, sockudo);
     this.nacl = nacl;
   }
 
@@ -63,15 +64,12 @@ export default class EncryptedChannel extends PrivateChannel {
 
   /** Handles an event. For internal use only.
    *
-   * @param {PusherEvent} event
+   * @param {SockudoEvent} event
    */
-  handleEvent(event: PusherEvent) {
+  handleEvent(event: SockudoEvent) {
     const eventName = event.event;
     const data = event.data;
-    if (
-      eventName.indexOf("pusher_internal:") === 0 ||
-      eventName.indexOf("pusher:") === 0
-    ) {
+    if (isInternalEvent(eventName) || isPlatformEvent(eventName)) {
       super.handleEvent(event);
       return;
     }
@@ -114,7 +112,7 @@ export default class EncryptedChannel extends PrivateChannel {
       );
       // Try a single time to retrieve a new auth key and decrypt the event with it
       // If this fails, a new key will be requested when a new message is received
-      this.authorize(this.pusher.connection.socket_id, (error, authData) => {
+      this.authorize(this.sockudo.connection.socket_id, (error, authData) => {
         if (error) {
           Logger.error(
             `Failed to make a request to the authEndpoint: ${authData}. Unable to fetch new key, so dropping encrypted event`,

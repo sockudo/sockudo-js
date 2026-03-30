@@ -6,7 +6,7 @@ import TransportsTable from '../core/transports/transports_table';
 import Socket from '../core/socket';
 import HTTPFactory from '../core/http/http_factory';
 import HTTPRequest from '../core/http/http_request';
-import Pusher from '../core/pusher';
+import Pusher from '../core/sockudo';
 import JSONPRequest from './web/dom/jsonp_request';
 import Strategy from '../core/strategies/strategy';
 import { Config } from '../core/config';

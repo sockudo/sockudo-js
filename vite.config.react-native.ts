@@ -1,13 +1,13 @@
-import { defineConfig } from "rolldown-vite";
+import { defineConfig } from "vite";
 import path from "path";
 
 export default defineConfig({
   build: {
     lib: {
       entry: {
-        pusher: path.resolve(__dirname, "src/index.ts"),
+        sockudo: path.resolve(__dirname, "src/index.ts"),
       },
-      name: "Pusher",
+      name: "Sockudo",
       formats: ["es"],
       fileName: (format, entryName) => `${entryName}.js`,
     },

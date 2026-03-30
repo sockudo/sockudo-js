@@ -30,30 +30,30 @@ export interface DefaultConfig {
 
 const Defaults: DefaultConfig = {
   VERSION: VERSION,
-  PROTOCOL: 7,
+  PROTOCOL: 2,
 
   wsPort: 80,
   wssPort: 443,
   wsPath: "",
   // DEPRECATED: SockJS fallback parameters
-  httpHost: "sockjs.pusher.com",
+  httpHost: "sockjs.sockudo.com",
   httpPort: 80,
   httpsPort: 443,
-  httpPath: "/pusher",
+  httpPath: "/sockudo",
   // DEPRECATED: Stats
-  stats_host: "stats.pusher.com",
+  stats_host: "stats.sockudo.com",
   // DEPRECATED: Other settings
-  authEndpoint: "/pusher/auth",
+  authEndpoint: "/sockudo/auth",
   authTransport: "fetch",
   activityTimeout: 120000,
   pongTimeout: 30000,
   unavailableTimeout: 10000,
   userAuthentication: {
-    endpoint: "/pusher/user-auth",
+    endpoint: "/sockudo/user-auth",
     transport: "fetch",
   },
   channelAuthorization: {
-    endpoint: "/pusher/auth",
+    endpoint: "/sockudo/auth",
     transport: "fetch",
   },
 

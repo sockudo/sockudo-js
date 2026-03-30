@@ -1,6 +1,7 @@
 import Timeline from "../timeline/timeline";
 
 interface StrategyOptions {
+  echoMessages?: boolean;
   failFast?: boolean;
   hostNonTLS?: string;
   hostTLS?: string;
@@ -13,6 +14,7 @@ interface StrategyOptions {
   timeoutLimit?: number;
   ttl?: number;
   useTLS?: boolean;
+  wireFormat?: "json" | "messagepack" | "msgpack" | "protobuf" | "proto";
 }
 
 export default StrategyOptions;

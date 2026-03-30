@@ -1,8 +1,8 @@
-// Main entry point for pusher-js
-// Only exports the Pusher class as default
-// For Filter imports, use: import { Filter } from 'pusher-js/filter'
+// Main entry point for @sockudo/client
+// Only exports the Sockudo class as default
+// For Filter imports, use: import { Filter } from '@sockudo/client/filter'
 
-import PusherClass from "./core/pusher";
+import SockudoClass from "./core/sockudo";
 
-// Export Pusher as default only
-export default PusherClass;
+// Export Sockudo as default only
+export default SockudoClass;

@@ -1,4 +1,4 @@
-import Pusher from './pusher';
+import Pusher from './sockudo';
 import EventsDispatcher from './events/dispatcher';
 export default class WatchlistFacade extends EventsDispatcher {
     private pusher;

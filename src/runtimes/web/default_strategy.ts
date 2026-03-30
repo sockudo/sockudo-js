@@ -41,6 +41,8 @@ const getDefaultStrategy = (
     hostNonTLS: `${config.wsHost}:${config.wsPort}`,
     hostTLS: `${config.wsHost}:${config.wssPort}`,
     httpPath: config.wsPath,
+    echoMessages: config.echoMessages,
+    wireFormat: config.wireFormat,
   });
   const wssOptions: StrategyOptions = Object.assign({}, wsOptions, {
     useTLS: true,

@@ -13,7 +13,7 @@ const getAgent = (sender: TimelineSender, useTLS: boolean) => {
     void fetch(url)
       .then(async (response) => {
         if (response.status !== 200) {
-          throw new Error(`received ${response.status} from stats.pusher.com`);
+          throw new Error(`received ${response.status} from stats endpoint`);
         }
         return response.json() as Promise<{ host?: string }>;
       })

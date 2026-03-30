@@ -13,6 +13,11 @@ export interface Options {
     userAuthentication?: UserAuthenticationOptions;
     cluster: string;
     deltaCompression?: DeltaOptions;
+    protocolVersion?: number;
+    messageDeduplication?: boolean;
+    messageDeduplicationCapacity?: number;
+    connectionRecovery?: boolean;
+    echoMessages?: boolean;
     enableStats?: boolean;
     disableStats?: boolean;
     disabledTransports?: Transport[];

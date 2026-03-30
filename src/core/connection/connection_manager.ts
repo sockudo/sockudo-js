@@ -16,8 +16,9 @@ import {
   ConnectionCallbacks,
 } from "./callbacks";
 import Action from "./protocol/action";
+import { prefixedEvent } from "../protocol_prefix";
 
-/** Manages connection to Pusher.
+/** Manages connection to Sockudo.
  *
  * Uses a strategy (currently only default), timers and network availability
  * info to establish a connection and export its state. In case of failures,
@@ -38,7 +39,7 @@ import Action from "./protocol/action";
  * Options:
  * - unavailableTimeout - time to transition to unavailable state
  * - activityTimeout - time after which ping message should be sent
- * - pongTimeout - time for Pusher to respond with pong before reconnecting
+ * - pongTimeout - time for server to respond with pong before reconnecting
  *
  * @param {String} key application key
  * @param {Object} options
@@ -95,7 +96,7 @@ export default class ConnectionManager extends EventsDispatcher {
     this.updateStrategy();
   }
 
-  /** Establishes a connection to Pusher.
+  /** Establishes a connection to Sockudo.
    *
    * Does nothing when connection is already established. See top-level doc
    * to find events emitted on connection attempts.
@@ -261,7 +262,7 @@ export default class ConnectionManager extends EventsDispatcher {
         this.emit("message", message);
       },
       ping: () => {
-        this.send_event("pusher:pong", {});
+        this.send_event(prefixedEvent("pong"), {});
       },
       activity: () => {
         this.resetActivityCheck();

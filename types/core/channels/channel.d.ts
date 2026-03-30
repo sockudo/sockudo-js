@@ -1,5 +1,5 @@
 import { default as EventsDispatcher } from '../events/dispatcher';
-import Pusher from '../pusher';
+import Pusher from '../sockudo';
 import { PusherEvent } from '../connection/protocol/message-types';
 import { ChannelAuthorizationCallback } from '../auth/options';
 import { FilterNode } from './filter';
@@ -11,6 +11,7 @@ export default class Channel extends EventsDispatcher {
     subscriptionCancelled: boolean;
     subscriptionCount: null;
     tagsFilter: FilterNode | null;
+    eventsFilter: string[] | null;
     constructor(name: string, pusher: Pusher);
     authorize(socketId: string, callback: ChannelAuthorizationCallback): void;
     trigger(event: string, data: any): boolean;

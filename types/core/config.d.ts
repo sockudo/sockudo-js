@@ -20,6 +20,7 @@ export interface Config {
     wssPort: number;
     userAuthenticator: UserAuthenticationHandler;
     channelAuthorizer: ChannelAuthorizationHandler;
+    echoMessages?: boolean;
     forceTLS?: boolean;
     cluster?: string;
     disabledTransports?: Transport[];

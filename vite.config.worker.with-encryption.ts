@@ -1,4 +1,4 @@
-import { defineConfig } from "rolldown-vite";
+import { defineConfig } from "vite";
 import path from "path";
 
 export default defineConfig({
@@ -6,12 +6,12 @@ export default defineConfig({
     emptyOutDir: false,
     lib: {
       entry: {
-        "pusher-with-encryption.worker": path.resolve(
+        "sockudo-with-encryption.worker": path.resolve(
           __dirname,
-          "src/core/pusher-with-encryption.ts",
+          "src/core/sockudo-with-encryption.ts",
         ),
       },
-      name: "Pusher",
+      name: "Sockudo",
       formats: ["es"],
       fileName: (format, entryName) => `${entryName}.js`,
     },

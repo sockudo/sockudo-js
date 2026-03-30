@@ -52,7 +52,14 @@ export default class Pusher {
     unbind_global(callback?: Function): Pusher;
     unbind_all(callback?: Function): Pusher;
     subscribeAll(): void;
-    subscribe(channel_name: string, tagsFilter?: any): Channel;
+    subscribe(channel_name: string, options?: any | {
+        filter?: any;
+        delta?: {
+            enabled?: boolean;
+            algorithm?: 'fossil' | 'xdelta3';
+        };
+        events?: string[];
+    }): Channel;
     unsubscribe(channel_name: string): void;
     send_event(event_name: string, data: any, channel?: string): boolean;
     shouldUseTLS(): boolean;

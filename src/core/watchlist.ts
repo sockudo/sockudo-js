@@ -1,30 +1,31 @@
 import Logger from "./logger";
-import Pusher from "./pusher";
+import Sockudo from "./sockudo";
 import EventsDispatcher from "./events/dispatcher";
+import { prefixedInternal } from "./protocol_prefix";
 
 export default class WatchlistFacade extends EventsDispatcher {
-  private pusher: Pusher;
+  private sockudo: Sockudo;
 
-  public constructor(pusher: Pusher) {
+  public constructor(sockudo: Sockudo) {
     super(function (eventName, _data) {
       Logger.debug(`No callbacks on watchlist events for ${eventName}`);
     });
 
-    this.pusher = pusher;
+    this.sockudo = sockudo;
     this.bindWatchlistInternalEvent();
   }
 
-  handleEvent(pusherEvent) {
-    pusherEvent.data.events.forEach((watchlistEvent) => {
+  handleEvent(sockudoEvent) {
+    sockudoEvent.data.events.forEach((watchlistEvent) => {
       this.emit(watchlistEvent.name, watchlistEvent);
     });
   }
 
   private bindWatchlistInternalEvent() {
-    this.pusher.connection.bind("message", (pusherEvent) => {
-      const eventName = pusherEvent.event;
-      if (eventName === "pusher_internal:watchlist_events") {
-        this.handleEvent(pusherEvent);
+    this.sockudo.connection.bind("message", (sockudoEvent) => {
+      const eventName = sockudoEvent.event;
+      if (eventName === prefixedInternal("watchlist_events")) {
+        this.handleEvent(sockudoEvent);
       }
     });
   }

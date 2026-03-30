@@ -1,12 +1,13 @@
 import * as Collections from "../utils/collections";
 import { default as EventsDispatcher } from "../events/dispatcher";
 import Protocol from "./protocol/protocol";
-import { PusherEvent } from "./protocol/message-types";
+import { SockudoEvent } from "./protocol/message-types";
 import Logger from "../logger";
 import TransportConnection from "../transports/transport_connection";
 import Socket from "../socket";
+import { prefixedEvent } from "../protocol_prefix";
 /**
- * Provides Pusher protocol interface for transports.
+ * Provides Sockudo protocol interface for transports.
  *
  * Emits following events:
  * - message - on received messages
@@ -58,7 +59,7 @@ export default class Connection extends EventsDispatcher implements Socket {
    * @returns {Boolean} whether message was sent or not
    */
   send_event(name: string, data: any, channel?: string): boolean {
-    const event: PusherEvent = { event: name, data: data };
+    const event: SockudoEvent = { event: name, data: data };
     if (channel) {
       event.channel = channel;
     }
@@ -69,13 +70,13 @@ export default class Connection extends EventsDispatcher implements Socket {
   /** Sends a ping message to the server.
    *
    * Basing on the underlying transport, it might send either transport's
-   * protocol-specific ping or pusher:ping event.
+   * protocol-specific ping or platform ping event.
    */
   ping() {
     if (this.transport.supportsPing()) {
       this.transport.ping();
     } else {
-      this.send_event("pusher:ping", {});
+      this.send_event(prefixedEvent("ping"), {});
     }
   }
 
@@ -87,9 +88,9 @@ export default class Connection extends EventsDispatcher implements Socket {
   private bindListeners() {
     const listeners = {
       message: (messageEvent: MessageEvent) => {
-        let pusherEvent;
+        let sockudoEvent;
         try {
-          pusherEvent = Protocol.decodeMessage(messageEvent);
+          sockudoEvent = Protocol.decodeMessage(messageEvent);
         } catch (e) {
           this.emit("error", {
             type: "MessageParseError",
@@ -98,24 +99,24 @@ export default class Connection extends EventsDispatcher implements Socket {
           });
         }
 
-        if (pusherEvent !== undefined) {
-          Logger.debug("Event recd", pusherEvent);
+        if (sockudoEvent !== undefined) {
+          Logger.debug("Event recd", sockudoEvent);
 
-          switch (pusherEvent.event) {
-            case "pusher:error":
+          switch (sockudoEvent.event) {
+            case prefixedEvent("error"):
               this.emit("error", {
-                type: "PusherError",
-                data: pusherEvent.data,
+                type: "SockudoError",
+                data: sockudoEvent.data,
               });
               break;
-            case "pusher:ping":
+            case prefixedEvent("ping"):
               this.emit("ping");
               break;
-            case "pusher:pong":
+            case prefixedEvent("pong"):
               this.emit("pong");
               break;
           }
-          this.emit("message", pusherEvent);
+          this.emit("message", sockudoEvent);
         }
       },
       activity: () => {

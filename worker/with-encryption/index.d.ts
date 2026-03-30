@@ -18,7 +18,7 @@ export { default as Members } from "../../types/core/channels/members";
 export { default as Runtime } from "../../types/runtimes/interface";
 export { default as ConnectionManager } from "../../types/core/connection/connection_manager";
 
-export { default } from "../../types/core/pusher-with-encryption";
+export { default } from "../../types/core/sockudo-with-encryption";
 
 // The following types are provided for backward compatibility
 export {

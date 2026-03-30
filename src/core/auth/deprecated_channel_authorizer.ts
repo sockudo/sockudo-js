@@ -29,7 +29,7 @@ export interface DeprecatedAuthorizerOptions {
 }
 
 export const ChannelAuthorizerProxy = (
-  pusher,
+  sockudo,
   authOptions: InternalAuthOptions,
   channelAuthorizerGenerator: ChannelAuthorizerGenerator,
 ): ChannelAuthorizationHandler => {
@@ -45,7 +45,7 @@ export const ChannelAuthorizerProxy = (
     params: ChannelAuthorizationRequestParams,
     callback: ChannelAuthorizationCallback,
   ) => {
-    const channel = pusher.channel(params.channelName);
+    const channel = sockudo.channel(params.channelName);
     // This line creates a new channel authorizer every time.
     // In the past, this was only done once per channel and reused.
     // We can do that again if we want to keep this behavior intact.

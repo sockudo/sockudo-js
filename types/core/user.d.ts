@@ -1,4 +1,4 @@
-import Pusher from './pusher';
+import Pusher from './sockudo';
 import Channel from './channels/channel';
 import WatchlistFacade from './watchlist';
 import EventsDispatcher from './events/dispatcher';

@@ -7,10 +7,10 @@ import Util from "../util";
  * rest it just copies the value of the property.
  *
  * To extend prototypes use it as following:
- *   Pusher.Util.extend(Target.prototype, Base.prototype)
+ *   Sockudo.Util.extend(Target.prototype, Base.prototype)
  *
  * You can also use it to merge objects without altering them:
- *   Pusher.Util.extend({}, object1, object2)
+ *   Sockudo.Util.extend({}, object1, object2)
  *
  * @param  {Object} target
  * @return {Object} the target argument
@@ -34,7 +34,7 @@ export function extend<T>(target: any, ...sources: any[]): T {
 }
 
 export function stringify(): string {
-  const m = ["Pusher"];
+  const m = ["Sockudo"];
   for (let i = 0; i < arguments.length; i++) {
     if (typeof arguments[i] === "string") {
       m.push(arguments[i]);

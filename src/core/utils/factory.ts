@@ -18,7 +18,7 @@ import Channel from "../channels/channel";
 import ConnectionManager from "../connection/connection_manager";
 import ConnectionManagerOptions from "../connection/connection_manager_options";
 import Channels from "../channels/channels";
-import Pusher from "../pusher";
+import Sockudo from "../sockudo";
 import * as nacl from "tweetnacl";
 
 const Factory = {
@@ -33,24 +33,24 @@ const Factory = {
     return new ConnectionManager(key, options);
   },
 
-  createChannel(name: string, pusher: Pusher): Channel {
-    return new Channel(name, pusher);
+  createChannel(name: string, sockudo: Sockudo): Channel {
+    return new Channel(name, sockudo);
   },
 
-  createPrivateChannel(name: string, pusher: Pusher): PrivateChannel {
-    return new PrivateChannel(name, pusher);
+  createPrivateChannel(name: string, sockudo: Sockudo): PrivateChannel {
+    return new PrivateChannel(name, sockudo);
   },
 
-  createPresenceChannel(name: string, pusher: Pusher): PresenceChannel {
-    return new PresenceChannel(name, pusher);
+  createPresenceChannel(name: string, sockudo: Sockudo): PresenceChannel {
+    return new PresenceChannel(name, sockudo);
   },
 
   createEncryptedChannel(
     name: string,
-    pusher: Pusher,
+    sockudo: Sockudo,
     nacl: nacl,
   ): EncryptedChannel {
-    return new EncryptedChannel(name, pusher, nacl);
+    return new EncryptedChannel(name, sockudo, nacl);
   },
 
   createTimelineSender(timeline: Timeline, options: TimelineSenderOptions) {

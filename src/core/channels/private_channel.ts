@@ -4,7 +4,7 @@ import { ChannelAuthorizationCallback } from "../auth/options";
 /** Extends public channels to provide private channel interface.
  *
  * @param {String} name
- * @param {Pusher} pusher
+ * @param {Sockudo} sockudo
  */
 export default class PrivateChannel extends Channel {
   /** Authorizes the connection to use the channel.
@@ -13,7 +13,7 @@ export default class PrivateChannel extends Channel {
    * @param  {(...args: any[]) => any} callback
    */
   authorize(socketId: string, callback: ChannelAuthorizationCallback) {
-    return this.pusher.config.channelAuthorizer(
+    return this.sockudo.config.channelAuthorizer(
       {
         channelName: this.name,
         socketId: socketId,

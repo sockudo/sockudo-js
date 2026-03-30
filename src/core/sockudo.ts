@@ -19,16 +19,25 @@ import StrategyOptions from "./strategies/strategy_options";
 import UserFacade from "./user";
 import DeltaCompressionManager from "./delta/manager";
 import { DeltaStats } from "./delta/types";
+import MessageDeduplicator from "./message_dedup";
 import { Filter, validateFilter, FilterExamples } from "./channels/filter";
 import type { FilterNode } from "./channels/filter";
+import {
+  setProtocolVersion,
+  prefixedEvent,
+  isInternalEvent,
+  isPlatformEvent,
+} from "./protocol_prefix";
+import { setWireFormat } from "./wire_format";
 
 // Re-export filter types and utilities for easy access
 export { Filter, validateFilter, FilterExamples };
 export type { FilterNode };
+export { MessageDeduplicator };
 
-export default class Pusher {
+export default class Sockudo {
   /*  STATIC PROPERTIES */
-  static instances: Pusher[] = [];
+  static instances: Sockudo[] = [];
   static isReady: boolean = false;
 
   private static _logToConsole: boolean = false;
@@ -55,9 +64,9 @@ export default class Pusher {
   static Runtime: AbstractRuntime = Runtime;
 
   static ready() {
-    Pusher.isReady = true;
-    for (let i = 0, l = Pusher.instances.length; i < l; i++) {
-      Pusher.instances[i].connect();
+    Sockudo.isReady = true;
+    for (let i = 0, l = Sockudo.instances.length; i < l; i++) {
+      Sockudo.instances[i].connect();
     }
   }
 
@@ -81,9 +90,14 @@ export default class Pusher {
   timelineSenderTimer: PeriodicTimer;
   user: UserFacade;
   deltaCompression: DeltaCompressionManager;
+  messageDedup: MessageDeduplicator | null;
+  private channelSerials: Map<string, number> = new Map();
+  private connectionRecoveryEnabled: boolean = false;
   constructor(app_key: string, options: Options) {
     checkAppKey(app_key);
     validateOptions(options);
+    setProtocolVersion(options.protocolVersion ?? 2);
+    setWireFormat(options.wireFormat);
     this.key = app_key;
     this.config = getConfig(options, this);
 
@@ -93,7 +107,7 @@ export default class Pusher {
 
     this.timeline = new Timeline(this.key, this.sessionID, {
       cluster: this.config.cluster,
-      features: Pusher.getClientFeatures(),
+      features: Sockudo.getClientFeatures(),
       params: this.config.timelineParams || {},
       limit: 50,
       level: TimelineLevel.INFO,
@@ -119,6 +133,14 @@ export default class Pusher {
       useTLS: Boolean(this.config.useTLS),
     });
 
+    // Initialize message deduplication (enabled by default)
+    const dedupEnabled = options.messageDeduplication !== false;
+    this.messageDedup = dedupEnabled
+      ? new MessageDeduplicator(options.messageDeduplicationCapacity || 1000)
+      : null;
+
+    this.connectionRecoveryEnabled = options.connectionRecovery === true;
+
     // Initialize delta compression manager if configured
     // Note: We always create the manager if deltaCompression option is present,
     // but only enable it automatically if enabled: true
@@ -131,6 +153,16 @@ export default class Pusher {
 
     this.connection.bind("connected", () => {
       this.subscribeAll();
+      if (this.connectionRecoveryEnabled && this.channelSerials.size > 0) {
+        const channelSerialsObj: Record<string, number> = {};
+        this.channelSerials.forEach((serial, channel) => {
+          channelSerialsObj[channel] = serial;
+        });
+        this.send_event(
+          prefixedEvent("resume"),
+          JSON.stringify({ channel_serials: channelSerialsObj }),
+        );
+      }
       if (this.timelineSender) {
         this.timelineSender.send(this.connection.isUsingTLS());
       }
@@ -141,18 +173,59 @@ export default class Pusher {
     });
 
     this.connection.bind("message", (event) => {
+      // Deduplicate messages using the server-provided message_id
+      if (this.messageDedup && event.message_id) {
+        if (this.messageDedup.isDuplicate(event.message_id)) {
+          return;
+        }
+        this.messageDedup.track(event.message_id);
+      }
+
       const eventName = event.event;
-      const internal = eventName.indexOf("pusher_internal:") === 0;
+      const internal = isInternalEvent(eventName);
+
+      // Track serial per channel for connection recovery
+      if (
+        this.connectionRecoveryEnabled &&
+        event.channel &&
+        typeof (event as any).serial === "number"
+      ) {
+        this.channelSerials.set(event.channel, (event as any).serial);
+      }
+
+      // Handle connection recovery protocol events
+      if (eventName === prefixedEvent("resume_success")) {
+        const resumeData =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        Logger.debug("Connection recovery succeeded", resumeData);
+        return;
+      }
+      if (eventName === prefixedEvent("resume_failed")) {
+        const failData =
+          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        Logger.warn("Connection recovery failed for channel", failData);
+        if (failData && failData.channel) {
+          this.channelSerials.delete(failData.channel);
+          const failedChannel = this.channel(failData.channel);
+          if (failedChannel) {
+            failedChannel.subscribe();
+          }
+        }
+        return;
+      }
 
       // Handle delta compression protocol events
       if (this.deltaCompression) {
-        if (eventName === "pusher:delta_compression_enabled") {
+        if (eventName === prefixedEvent("delta_compression_enabled")) {
           this.deltaCompression.handleEnabled(event.data);
           // Don't return - let it emit to global listeners
-        } else if (eventName === "pusher:delta_cache_sync" && event.channel) {
+        } else if (
+          eventName === prefixedEvent("delta_cache_sync") &&
+          event.channel
+        ) {
           this.deltaCompression.handleCacheSync(event.channel, event.data);
           return;
-        } else if (eventName === "pusher:delta" && event.channel) {
+        } else if (eventName === prefixedEvent("delta") && event.channel) {
           // Check if channel still exists before processing delta
           // This prevents errors from in-flight delta messages after unsubscribe
           const channel = this.channel(event.channel);
@@ -191,8 +264,8 @@ export default class Pusher {
         if (
           this.deltaCompression &&
           event.event &&
-          !event.event.startsWith("pusher:") &&
-          !event.event.startsWith("pusher_internal:")
+          !isPlatformEvent(event.event) &&
+          !isInternalEvent(event.event)
         ) {
           // Extract sequence number from message level (not from data)
           let sequence: number | undefined;
@@ -250,12 +323,12 @@ export default class Pusher {
       Logger.warn(err);
     });
 
-    Pusher.instances.push(this);
-    this.timeline.info({ instances: Pusher.instances.length });
+    Sockudo.instances.push(this);
+    this.timeline.info({ instances: Sockudo.instances.length });
 
     this.user = new UserFacade(this);
 
-    if (Pusher.isReady) {
+    if (Sockudo.isReady) {
       this.connect();
     }
   }
@@ -295,7 +368,7 @@ export default class Pusher {
     event_name: string,
     callback: (...args: any[]) => any,
     context?: any,
-  ): Pusher {
+  ): Sockudo {
     this.global_emitter.bind(event_name, callback, context);
     return this;
   }
@@ -304,22 +377,22 @@ export default class Pusher {
     event_name?: string,
     callback?: (...args: any[]) => any,
     context?: any,
-  ): Pusher {
+  ): Sockudo {
     this.global_emitter.unbind(event_name, callback, context);
     return this;
   }
 
-  bind_global(callback: (...args: any[]) => any): Pusher {
+  bind_global(callback: (...args: any[]) => any): Sockudo {
     this.global_emitter.bind_global(callback);
     return this;
   }
 
-  unbind_global(callback?: (...args: any[]) => any): Pusher {
+  unbind_global(callback?: (...args: any[]) => any): Sockudo {
     this.global_emitter.unbind_global(callback);
     return this;
   }
 
-  unbind_all(_callback?: (...args: any[]) => any): Pusher {
+  unbind_all(_callback?: (...args: any[]) => any): Sockudo {
     this.global_emitter.unbind_all();
     return this;
   }
@@ -343,26 +416,26 @@ export default class Pusher {
    *
    * @example
    * // Simple subscription
-   * pusher.subscribe('my-channel');
+   * sockudo.subscribe('my-channel');
    *
    * @example
    * // Subscription with tags filter (backward compatible)
-   * pusher.subscribe('my-channel', Filter.eq('type', 'important'));
+   * sockudo.subscribe('my-channel', Filter.eq('type', 'important'));
    *
    * @example
    * // Subscription with delta compression
-   * pusher.subscribe('my-channel', { delta: { enabled: true, algorithm: 'fossil' } });
+   * sockudo.subscribe('my-channel', { delta: { enabled: true, algorithm: 'fossil' } });
    *
    * @example
    * // Subscription with both filter and delta settings
-   * pusher.subscribe('my-channel', {
+   * sockudo.subscribe('my-channel', {
    *   filter: Filter.eq('type', 'important'),
    *   delta: { enabled: true, algorithm: 'xdelta3' }
    * });
    *
    * @example
    * // Disable delta compression for a specific channel
-   * pusher.subscribe('my-channel', { delta: { enabled: false } });
+   * sockudo.subscribe('my-channel', { delta: { enabled: false } });
    */
   subscribe(
     channel_name: string,
@@ -371,25 +444,26 @@ export default class Pusher {
       | {
           filter?: any;
           delta?: { enabled?: boolean; algorithm?: "fossil" | "xdelta3" };
+          events?: string[];
         },
   ) {
     const channel = this.channels.add(channel_name, this);
 
-    // Handle different option formats for backward compatibility
     if (options) {
       if (
         typeof options === "object" &&
-        ("filter" in options || "delta" in options)
+        ("filter" in options || "delta" in options || "events" in options)
       ) {
-        // New object format: { filter?: FilterNode, delta?: ChannelDeltaSettings }
         if (options.filter) {
           channel.tagsFilter = options.filter;
         }
         if (options.delta) {
           channel.setDeltaSettings(options.delta);
         }
+        if (options.events) {
+          channel.eventsFilter = options.events;
+        }
       } else {
-        // Legacy format: FilterNode directly (backward compatible)
         channel.tagsFilter = options;
       }
     }
@@ -415,6 +489,8 @@ export default class Pusher {
         channel.unsubscribe();
       }
     }
+
+    this.channelSerials.delete(channel_name);
 
     // Clear delta compression state for this channel to prevent stale base messages
     // on resubscribe. The server also clears its state, so both sides start fresh.
@@ -458,8 +534,8 @@ export default class Pusher {
 
 function checkAppKey(key) {
   if (key === null || key === undefined) {
-    throw "You must pass your app key when you instantiate Pusher.";
+    throw "You must pass your app key when you instantiate Sockudo.";
   }
 }
 
-Runtime.setup(Pusher);
+Runtime.setup(Sockudo);
