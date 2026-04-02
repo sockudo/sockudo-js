@@ -13,15 +13,29 @@ beforeAll(async () => {
     DEPENDENCY_SUFFIX: "",
   });
 
-  ({ default: Protocol } = await import(
-    "../src/core/connection/protocol/protocol"
-  ));
+  ({ default: Protocol } =
+    await import("../src/core/connection/protocol/protocol"));
   ({ setProtocolVersion } = await import("../src/core/protocol_prefix"));
   ({ setWireFormat } = await import("../src/core/wire_format"));
   ({ ws } = await import("../src/core/transports/url_schemes"));
 });
 
 describe("protocol wire formats", () => {
+  it("uses v1 by default and omits the format query", () => {
+    setProtocolVersion(7);
+    const url = ws.getInitial("app-key", {
+      useTLS: false,
+      hostTLS: "ws.example.com",
+      hostNonTLS: "ws.example.com",
+      httpPath: "",
+      wireFormat: "messagepack",
+      echoMessages: true,
+    });
+
+    expect(url).toContain("protocol=7");
+    expect(url).not.toContain("format=");
+  });
+
   it("encodes websocket URL with v2 format query", () => {
     setProtocolVersion(2);
     const url = ws.getInitial("app-key", {

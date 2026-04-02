@@ -82,6 +82,7 @@ const createLiveClient = (overrides: Record<string, unknown> = {}) =>
   new Sockudo("app-key", {
     cluster: "local",
     forceTLS: false,
+    protocolVersion: 2,
     enabledTransports: ["ws"],
     wsHost: "127.0.0.1",
     wsPort: 6001,
@@ -212,10 +213,7 @@ describe("live wire format integration", () => {
     const client = createLiveClient();
     const receivedMarkers: string[] = [];
 
-    const channel = await connectAndWaitForSubscription(
-      client,
-      `wildcard-${id}-*`,
-    );
+    await connectAndWaitForSubscription(client, `wildcard-${id}-*`);
     client.bind("wildcard-event", (data) => {
       const marker = (data as Record<string, unknown>)?.marker;
       if (typeof marker === "string") {

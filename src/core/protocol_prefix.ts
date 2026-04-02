@@ -2,19 +2,19 @@
  * Protocol version prefix helpers.
  *
  * Protocol v1 uses the original Pusher event prefix ("pusher:" / "pusher_internal:").
- * Protocol v2 (Sockudo-native, the default) uses "sockudo:" / "sockudo_internal:".
+ * Protocol v2 (Sockudo-native) uses "sockudo:" / "sockudo_internal:".
  *
  * The active prefixes are set once at SDK init time via {@link setProtocolVersion}
  * and read everywhere else through the exported constants.
  */
 
-let _version: number = 2;
-let _eventPrefix: string = "sockudo:";
-let _internalPrefix: string = "sockudo_internal:";
+let _version: number = 7;
+let _eventPrefix: string = "pusher:";
+let _internalPrefix: string = "pusher_internal:";
 
 export function setProtocolVersion(version: number): void {
   _version = version;
-  if (version >= 2) {
+  if (version === 2) {
     _eventPrefix = "sockudo:";
     _internalPrefix = "sockudo_internal:";
   } else {

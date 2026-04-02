@@ -6,10 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { createApp, defineComponent, h, nextTick } from "vue";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import type SockudoType from "../src/index";
-import {
-  SockudoProvider,
-  useChannel as useReactChannel,
-} from "../src/framework-react/index";
+import { useChannel as useReactChannel } from "../src/framework-react/index";
 import {
   createSockudoPlugin,
   useChannel as useVueChannel,
@@ -183,9 +180,7 @@ describe("live framework integrations", () => {
     clients.push(client);
     const channelName = `vue-live-${randomUUID()}`;
     const eventName = "vue-live-event";
-    let latest:
-      | ReturnType<typeof useVueChannel>
-      | null = null;
+    let latest: ReturnType<typeof useVueChannel> | null = null;
 
     const RootComponent = defineComponent({
       setup() {

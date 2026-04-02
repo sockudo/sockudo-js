@@ -30,7 +30,7 @@ export const ws: URLScheme = {
     if (params.echoMessages === false) {
       queryString += "&echo_messages=false";
     }
-    if (protocolVersion() >= 2 && params.wireFormat) {
+    if (protocolVersion() === 2 && params.wireFormat) {
       queryString += "&format=" + encodeURIComponent(params.wireFormat);
     }
     const path = (params.httpPath || "") + getGenericPath(key, queryString);

@@ -27,10 +27,7 @@ export interface SockudoProviderProps {
   children?: ReactNode;
 }
 
-export function SockudoProvider({
-  client,
-  children,
-}: SockudoProviderProps) {
+export function SockudoProvider({ client, children }: SockudoProviderProps) {
   return createElement(SockudoContext.Provider, { value: client }, children);
 }
 

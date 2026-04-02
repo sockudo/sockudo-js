@@ -75,9 +75,21 @@ channel.bind("message", (payload: unknown) => {
 });
 ```
 
+The default client mode is Protocol V1 compatibility (`protocol=7`). Opt into Protocol V2 explicitly when you want Sockudo-native event prefixes and V2-only features.
+
+```ts
+const sockudoV2 = new Sockudo("app-key", {
+  wsHost: "your-sockudo-host",
+  wsPort: 6001,
+  forceTLS: true,
+  protocolVersion: 2,
+});
+```
+
 ## Features
 
 - Pusher-protocol-compatible client surface
+- Protocol V1 compatibility by default
 - WebSocket-first connection strategy
 - Fetch-first auth/timeline integrations
 - ESM-first package outputs

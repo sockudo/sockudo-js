@@ -96,7 +96,7 @@ export default class Sockudo {
   constructor(app_key: string, options: Options) {
     checkAppKey(app_key);
     validateOptions(options);
-    setProtocolVersion(options.protocolVersion ?? 2);
+    setProtocolVersion(options.protocolVersion ?? 7);
     setWireFormat(options.wireFormat);
     this.key = app_key;
     this.config = getConfig(options, this);

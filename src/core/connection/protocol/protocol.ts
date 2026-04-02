@@ -439,7 +439,6 @@ const Protocol = {
   },
 
   encodeMessage: function (event: SockudoEvent): string | Uint8Array {
-    const envelope = eventToEnvelope(event);
     switch (wireFormat()) {
       case "messagepack":
         return encodeMsgpack(encodeMsgpackEnvelope(event));
