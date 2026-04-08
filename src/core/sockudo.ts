@@ -3,6 +3,7 @@ import Runtime from "runtime";
 import * as Collections from "./utils/collections";
 import Channels from "./channels/channels";
 import Channel from "./channels/channel";
+import type { ChannelSubscriptionOptions } from "./channels/channel";
 import { default as EventsDispatcher } from "./events/dispatcher";
 import Timeline from "./timeline/timeline";
 import TimelineSender from "./timeline/timeline_sender";
@@ -22,6 +23,12 @@ import { DeltaStats } from "./delta/types";
 import MessageDeduplicator from "./message_dedup";
 import { Filter, validateFilter, FilterExamples } from "./channels/filter";
 import type { FilterNode } from "./channels/filter";
+import type {
+  RecoveryPosition,
+  ResumeFailedChannel,
+  ResumeSuccessData,
+  RewindCompleteData,
+} from "./connection/protocol/message-types";
 import {
   setProtocolVersion,
   prefixedEvent,
@@ -91,7 +98,7 @@ export default class Sockudo {
   user: UserFacade;
   deltaCompression: DeltaCompressionManager;
   messageDedup: MessageDeduplicator | null;
-  private channelSerials: Map<string, number> = new Map();
+  private channelPositions: Map<string, RecoveryPosition> = new Map();
   private connectionRecoveryEnabled: boolean = false;
   constructor(app_key: string, options: Options) {
     checkAppKey(app_key);
@@ -153,14 +160,14 @@ export default class Sockudo {
 
     this.connection.bind("connected", () => {
       this.subscribeAll();
-      if (this.connectionRecoveryEnabled && this.channelSerials.size > 0) {
-        const channelSerialsObj: Record<string, number> = {};
-        this.channelSerials.forEach((serial, channel) => {
-          channelSerialsObj[channel] = serial;
+      if (this.connectionRecoveryEnabled && this.channelPositions.size > 0) {
+        const channelPositions: Record<string, RecoveryPosition> = {};
+        this.channelPositions.forEach((position, channel) => {
+          channelPositions[channel] = { ...position };
         });
         this.send_event(
           prefixedEvent("resume"),
-          JSON.stringify({ channel_serials: channelSerialsObj }),
+          JSON.stringify({ channel_positions: channelPositions }),
         );
       }
       if (this.timelineSender) {
@@ -190,28 +197,36 @@ export default class Sockudo {
         event.channel &&
         typeof (event as any).serial === "number"
       ) {
-        this.channelSerials.set(event.channel, (event as any).serial);
+        this.channelPositions.set(event.channel, {
+          stream_id: event.stream_id,
+          serial: event.serial,
+          last_message_id: event.message_id,
+        });
       }
 
       // Handle connection recovery protocol events
       if (eventName === prefixedEvent("resume_success")) {
-        const resumeData =
-          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        const resumeData = normalizeResumeSuccessData(event.data);
         Logger.debug("Connection recovery succeeded", resumeData);
+        this.global_emitter.emit(eventName, resumeData);
         return;
       }
       if (eventName === prefixedEvent("resume_failed")) {
-        const failData =
-          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        const failData = normalizeResumeFailedData(event.data);
         Logger.warn("Connection recovery failed for channel", failData);
         if (failData && failData.channel) {
-          this.channelSerials.delete(failData.channel);
+          this.channelPositions.delete(failData.channel);
           const failedChannel = this.channel(failData.channel);
           if (failedChannel) {
             failedChannel.subscribe();
           }
         }
+        this.global_emitter.emit(eventName, failData);
         return;
+      }
+
+      if (eventName === prefixedEvent("rewind_complete")) {
+        event.data = normalizeRewindCompleteData(event.data);
       }
 
       // Handle delta compression protocol events
@@ -437,16 +452,7 @@ export default class Sockudo {
    * // Disable delta compression for a specific channel
    * sockudo.subscribe('my-channel', { delta: { enabled: false } });
    */
-  subscribe(
-    channel_name: string,
-    options?:
-      | any
-      | {
-          filter?: any;
-          delta?: { enabled?: boolean; algorithm?: "fossil" | "xdelta3" };
-          events?: string[];
-        },
-  ) {
+  subscribe(channel_name: string, options?: any | ChannelSubscriptionOptions) {
     const channel = this.channels.add(channel_name, this);
 
     if (options) {
@@ -462,6 +468,9 @@ export default class Sockudo {
         }
         if (options.events) {
           channel.eventsFilter = options.events;
+        }
+        if ("rewind" in options) {
+          channel.rewind = options.rewind ?? null;
         }
       } else {
         channel.tagsFilter = options;
@@ -490,7 +499,7 @@ export default class Sockudo {
       }
     }
 
-    this.channelSerials.delete(channel_name);
+    this.channelPositions.delete(channel_name);
 
     // Clear delta compression state for this channel to prevent stale base messages
     // on resubscribe. The server also clears its state, so both sides start fresh.
@@ -530,6 +539,86 @@ export default class Sockudo {
       this.deltaCompression.resetStats();
     }
   }
+
+  getRecoveryPosition(channelName: string): RecoveryPosition | null {
+    const position = this.channelPositions.get(channelName);
+    return position ? { ...position } : null;
+  }
+
+  getRecoveryPositions(): Record<string, RecoveryPosition> {
+    return Object.fromEntries(
+      Array.from(this.channelPositions.entries()).map(([channel, position]) => [
+        channel,
+        { ...position },
+      ]),
+    );
+  }
+
+  setRecoveryPosition(channelName: string, position: RecoveryPosition | null): void {
+    if (position == null) {
+      this.channelPositions.delete(channelName);
+      return;
+    }
+    this.channelPositions.set(channelName, { ...position });
+  }
+
+  setRecoveryPositions(positions: Record<string, RecoveryPosition>): void {
+    this.channelPositions.clear();
+    Object.entries(positions).forEach(([channel, position]) => {
+      this.channelPositions.set(channel, { ...position });
+    });
+  }
+}
+
+function normalizeResumeRecoveredChannel(value: any) {
+  return {
+    channel: value?.channel ?? "",
+    source: value?.source ?? "",
+    replayed: typeof value?.replayed === "number" ? value.replayed : 0,
+  };
+}
+
+function normalizeResumeFailedData(data: any): ResumeFailedChannel {
+  const value = typeof data === "string" ? JSON.parse(data) : data ?? {};
+  return {
+    channel: value.channel ?? "",
+    code: value.code ?? "",
+    reason: value.reason ?? "",
+    expected_stream_id: value.expected_stream_id ?? undefined,
+    current_stream_id: value.current_stream_id ?? undefined,
+    oldest_available_serial:
+      typeof value.oldest_available_serial === "number"
+        ? value.oldest_available_serial
+        : undefined,
+    newest_available_serial:
+      typeof value.newest_available_serial === "number"
+        ? value.newest_available_serial
+        : undefined,
+  };
+}
+
+function normalizeResumeSuccessData(data: any): ResumeSuccessData {
+  const value = typeof data === "string" ? JSON.parse(data) : data ?? {};
+  return {
+    recovered: Array.isArray(value.recovered)
+      ? value.recovered.map(normalizeResumeRecoveredChannel)
+      : [],
+    failed: Array.isArray(value.failed)
+      ? value.failed.map((entry: any) => normalizeResumeFailedData(entry))
+      : [],
+  };
+}
+
+function normalizeRewindCompleteData(data: any): RewindCompleteData {
+  const value = typeof data === "string" ? JSON.parse(data) : data ?? {};
+  return {
+    historical_count:
+      typeof value.historical_count === "number" ? value.historical_count : 0,
+    live_count: typeof value.live_count === "number" ? value.live_count : 0,
+    complete: Boolean(value.complete),
+    truncated_by_retention: Boolean(value.truncated_by_retention),
+    truncated_by_limit: Boolean(value.truncated_by_limit),
+  };
 }
 
 function checkAppKey(key) {

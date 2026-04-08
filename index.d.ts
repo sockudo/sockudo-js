@@ -11,6 +11,17 @@ export {
   UserAuthenticationCallback,
 } from './types/core/auth/options';
 export { Options } from './types/core/options';
+export type {
+  RecoveryPosition,
+  ResumeFailedChannel,
+  ResumeRecoveredChannel,
+  ResumeSuccessData,
+  RewindCompleteData,
+} from './types/core/connection/protocol/message-types';
+export type {
+  ChannelSubscriptionOptions,
+  SubscriptionRewind,
+} from './types/core/channels/channel';
 
 export { default as Channel } from './types/core/channels/channel';
 export { default as PresenceChannel } from './types/core/channels/presence_channel';

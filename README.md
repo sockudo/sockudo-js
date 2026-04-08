@@ -96,6 +96,35 @@ const sockudoV2 = new Sockudo("app-key", {
 - Runtime-specific builds for web/node/worker/react-native/nativescript
 - Built-in React hooks via `@sockudo/client/react`
 - Built-in Vue composables via `@sockudo/client/vue`
+- Continuity-aware recovery positions and subscribe-time rewind in Protocol V2
+
+## Recovery And Rewind
+
+```ts
+const client = new Sockudo("app-key", {
+  wsHost: "127.0.0.1",
+  wsPort: 6001,
+  forceTLS: false,
+  protocolVersion: 2,
+  connectionRecovery: true,
+});
+
+const channel = client.subscribe("market:BTC", {
+  rewind: { seconds: 30 },
+});
+
+channel.bind("message", () => {
+  console.log(client.getRecoveryPosition("market:BTC"));
+});
+
+client.bind("sockudo:resume_success", (payload) => {
+  console.log(payload.recovered, payload.failed);
+});
+
+channel.bind("sockudo:rewind_complete", (payload) => {
+  console.log(payload.historical_count, payload.complete);
+});
+```
 
 ## React Hooks
 

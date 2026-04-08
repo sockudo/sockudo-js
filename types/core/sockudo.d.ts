@@ -13,6 +13,8 @@ import DeltaCompressionManager from './delta/manager';
 import { DeltaStats } from './delta/types';
 import { Filter, validateFilter, FilterExamples } from './channels/filter';
 import type { FilterNode } from './channels/filter';
+import type { RecoveryPosition } from './connection/protocol/message-types';
+import type { ChannelSubscriptionOptions } from './channels/channel';
 export { Filter, validateFilter, FilterExamples };
 export type { FilterNode };
 export default class Pusher {
@@ -52,18 +54,15 @@ export default class Pusher {
     unbind_global(callback?: Function): Pusher;
     unbind_all(callback?: Function): Pusher;
     subscribeAll(): void;
-    subscribe(channel_name: string, options?: any | {
-        filter?: any;
-        delta?: {
-            enabled?: boolean;
-            algorithm?: 'fossil' | 'xdelta3';
-        };
-        events?: string[];
-    }): Channel;
+    subscribe(channel_name: string, options?: any | ChannelSubscriptionOptions): Channel;
     unsubscribe(channel_name: string): void;
     send_event(event_name: string, data: any, channel?: string): boolean;
     shouldUseTLS(): boolean;
     signin(): void;
     getDeltaStats(): DeltaStats | null;
     resetDeltaStats(): void;
+    getRecoveryPosition(channelName: string): RecoveryPosition | null;
+    getRecoveryPositions(): Record<string, RecoveryPosition>;
+    setRecoveryPosition(channelName: string, position: RecoveryPosition | null): void;
+    setRecoveryPositions(positions: Record<string, RecoveryPosition>): void;
 }

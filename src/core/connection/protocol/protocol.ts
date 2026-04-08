@@ -48,7 +48,8 @@ const ProtoPusherMessage = new Type("ProtoPusherMessage")
   .add(new Field("idempotencyKey", 11, "string"))
   .add(new Field("extras", 12, "ProtoMessageExtras"))
   .add(new Field("deltaSequence", 13, "uint64"))
-  .add(new Field("deltaConflationKey", 14, "string"));
+  .add(new Field("deltaConflationKey", 14, "string"))
+  .add(new Field("streamId", 15, "string"));
 
 new Root()
   .define("sockudo")
@@ -69,6 +70,7 @@ const MSGPACK_ENVELOPE_FIELDS = [
   "sequence",
   "conflation_key",
   "message_id",
+  "stream_id",
   "serial",
   "idempotency_key",
   "extras",
@@ -187,6 +189,7 @@ function encodeMsgpackEnvelope(event: SockudoEvent): any[] {
     envelope.sequence ?? null,
     envelope.conflation_key ?? null,
     envelope.message_id ?? null,
+    envelope.stream_id ?? null,
     envelope.serial ?? null,
     envelope.idempotency_key ?? null,
     encodeMsgpackValue(envelope.extras),
@@ -306,10 +309,13 @@ function eventToEnvelope(event: SockudoEvent): Envelope {
     envelope.__conflation_key = event.conflation_key;
   }
   if (typeof (event as any).serial === "number") {
-    envelope.serial = (event as any).serial;
+    envelope.serial = event.serial;
   }
-  if (typeof (event as any).message_id === "string") {
-    envelope.message_id = (event as any).message_id;
+  if (typeof event.message_id === "string") {
+    envelope.message_id = event.message_id;
+  }
+  if (typeof event.stream_id === "string") {
+    envelope.stream_id = event.stream_id;
   }
   return envelope;
 }
@@ -340,10 +346,13 @@ function envelopeToEvent(
     decodedEvent.conflation_key = conflationKey;
   }
   if (typeof messageData.serial === "number") {
-    (decodedEvent as any).serial = messageData.serial;
+    decodedEvent.serial = messageData.serial;
   }
   if (typeof messageData.message_id === "string") {
-    (decodedEvent as any).message_id = messageData.message_id;
+    decodedEvent.message_id = messageData.message_id;
+  }
+  if (typeof messageData.stream_id === "string") {
+    decodedEvent.stream_id = messageData.stream_id;
   }
   return decodedEvent;
 }
@@ -354,6 +363,7 @@ function encodeProtobuf(event: SockudoEvent): Uint8Array {
     event: envelope.event,
     channel: envelope.channel,
     userId: envelope.user_id,
+    streamId: envelope.stream_id,
     serial: envelope.serial,
     messageId: envelope.message_id,
     deltaSequence: envelope.__delta_seq,
@@ -385,6 +395,7 @@ function decodeProtobuf(payload: Uint8Array): Envelope {
     event: decoded.event,
     channel: decoded.channel,
     user_id: decoded.userId,
+    stream_id: decoded.streamId,
     serial: normalizeNumeric(decoded.serial),
     message_id: decoded.messageId,
     __delta_seq: normalizeNumeric(decoded.deltaSequence),

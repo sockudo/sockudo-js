@@ -18,6 +18,20 @@ import {
   isInternalEvent,
 } from "../protocol_prefix";
 
+export type SubscriptionRewind =
+  | number
+  | {
+      count?: number;
+      seconds?: number;
+    };
+
+export interface ChannelSubscriptionOptions {
+  filter?: any;
+  delta?: { enabled?: boolean; algorithm?: "fossil" | "xdelta3" };
+  events?: string[];
+  rewind?: SubscriptionRewind;
+}
+
 /**
  * Per-subscription delta compression settings
  * Allows clients to negotiate delta compression on a per-channel basis
@@ -87,6 +101,7 @@ export default class Channel extends EventsDispatcher {
   tagsFilter: FilterNode | null;
   eventsFilter: string[] | null;
   deltaSettings: ChannelDeltaSettings | null;
+  rewind: SubscriptionRewind | null;
 
   constructor(name: string, sockudo: Sockudo) {
     super(function (event, _data) {
@@ -101,6 +116,7 @@ export default class Channel extends EventsDispatcher {
     this.tagsFilter = null;
     this.eventsFilter = null;
     this.deltaSettings = null;
+    this.rewind = null;
   }
 
   /**
@@ -242,6 +258,10 @@ export default class Channel extends EventsDispatcher {
 
           if (this.eventsFilter) {
             subscribeData.events = this.eventsFilter;
+          }
+
+          if (this.rewind !== null) {
+            subscribeData.rewind = this.rewind;
           }
 
           // Add per-subscription delta settings if present

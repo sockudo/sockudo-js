@@ -3,6 +3,19 @@ import Pusher from '../sockudo';
 import { PusherEvent } from '../connection/protocol/message-types';
 import { ChannelAuthorizationCallback } from '../auth/options';
 import { FilterNode } from './filter';
+export type SubscriptionRewind = number | {
+    count?: number;
+    seconds?: number;
+};
+export interface ChannelSubscriptionOptions {
+    filter?: any;
+    delta?: {
+        enabled?: boolean;
+        algorithm?: 'fossil' | 'xdelta3';
+    };
+    events?: string[];
+    rewind?: SubscriptionRewind;
+}
 export default class Channel extends EventsDispatcher {
     name: string;
     pusher: Pusher;
@@ -12,6 +25,7 @@ export default class Channel extends EventsDispatcher {
     subscriptionCount: null;
     tagsFilter: FilterNode | null;
     eventsFilter: string[] | null;
+    rewind: SubscriptionRewind | null;
     constructor(name: string, pusher: Pusher);
     authorize(socketId: string, callback: ChannelAuthorizationCallback): void;
     trigger(event: string, data: any): boolean;
