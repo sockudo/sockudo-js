@@ -1,4 +1,4 @@
-import { Options } from "./options";
+import { Options, PresenceHistoryOptions } from "./options";
 import Defaults from "./defaults";
 import {
   ChannelAuthorizationHandler,
@@ -45,6 +45,7 @@ export interface Config {
   ignoreNullOrigin?: boolean;
   nacl?: nacl;
   timelineParams?: any;
+  presenceHistory?: PresenceHistoryOptions;
 }
 
 // getConfig mainly sets the defaults for the options that are not provided
@@ -82,6 +83,9 @@ export function getConfig(opts: Options, sockudo): Config {
   if ("wireFormat" in opts) config.wireFormat = opts.wireFormat;
   if ("nacl" in opts) {
     config.nacl = opts.nacl;
+  }
+  if ("presenceHistory" in opts) {
+    config.presenceHistory = opts.presenceHistory;
   }
 
   return config;

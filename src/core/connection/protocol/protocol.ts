@@ -44,12 +44,12 @@ const ProtoPusherMessage = new Type("ProtoPusherMessage")
   .add(new Field("sequence", 7, "uint64"))
   .add(new Field("conflationKey", 8, "string"))
   .add(new Field("messageId", 9, "string"))
-  .add(new Field("serial", 10, "uint64"))
-  .add(new Field("idempotencyKey", 11, "string"))
-  .add(new Field("extras", 12, "ProtoMessageExtras"))
-  .add(new Field("deltaSequence", 13, "uint64"))
-  .add(new Field("deltaConflationKey", 14, "string"))
-  .add(new Field("streamId", 15, "string"));
+  .add(new Field("streamId", 10, "string"))
+  .add(new Field("serial", 11, "uint64"))
+  .add(new Field("idempotencyKey", 12, "string"))
+  .add(new Field("extras", 13, "ProtoMessageExtras"))
+  .add(new Field("deltaSequence", 14, "uint64"))
+  .add(new Field("deltaConflationKey", 15, "string"));
 
 new Root()
   .define("sockudo")

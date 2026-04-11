@@ -458,7 +458,12 @@ export default class Sockudo {
     if (options) {
       if (
         typeof options === "object" &&
-        ("filter" in options || "delta" in options || "events" in options)
+        (
+          "filter" in options ||
+          "delta" in options ||
+          "events" in options ||
+          "rewind" in options
+        )
       ) {
         if (options.filter) {
           channel.tagsFilter = options.filter;

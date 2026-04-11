@@ -11,6 +11,12 @@ import * as nacl from "tweetnacl";
 import Logger from "./logger";
 import { DeltaOptions } from "./delta/types";
 
+export interface PresenceHistoryOptions {
+  endpoint: string;
+  headers?: Record<string, string>;
+  headersProvider?: () => Record<string, string>;
+}
+
 export interface Options {
   activityTimeout?: number;
 
@@ -21,6 +27,7 @@ export interface Options {
 
   channelAuthorization?: ChannelAuthorizationOptions;
   userAuthentication?: UserAuthenticationOptions;
+  presenceHistory?: PresenceHistoryOptions;
 
   cluster: string;
   protocolVersion?: number;

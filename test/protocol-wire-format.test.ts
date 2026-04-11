@@ -1,10 +1,11 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 let Protocol: typeof import("../src/core/connection/protocol/protocol").default;
 let setProtocolVersion: typeof import("../src/core/protocol_prefix").setProtocolVersion;
 let setWireFormat: typeof import("../src/core/wire_format").setWireFormat;
 let ws: typeof import("../src/core/transports/url_schemes").ws;
 let Channel: typeof import("../src/core/channels/channel").default;
+let Sockudo: typeof import("../src/core/sockudo").default;
 
 beforeAll(async () => {
   Object.assign(globalThis, {
@@ -20,6 +21,7 @@ beforeAll(async () => {
   ({ setWireFormat } = await import("../src/core/wire_format"));
   ({ ws } = await import("../src/core/transports/url_schemes"));
   ({ default: Channel } = await import("../src/core/channels/channel"));
+  ({ default: Sockudo } = await import("../src/core/sockudo"));
 });
 
 describe("protocol wire formats", () => {
@@ -134,5 +136,34 @@ describe("protocol wire formats", () => {
     channel.subscribe();
 
     expect(sent[0]?.data?.rewind).toEqual({ seconds: 30 });
+  });
+
+  it("treats rewind-only options as subscription options", () => {
+    const fakeChannel = {
+      subscriptionPending: false,
+      subscriptionCancelled: false,
+      tagsFilter: null,
+      eventsFilter: null,
+      rewind: null,
+      setDeltaSettings: vi.fn(),
+      subscribe: vi.fn(),
+      reinstateSubscription: vi.fn(),
+    };
+    const fakeSockudo = {
+      channels: {
+        add: vi.fn(() => fakeChannel),
+      },
+      connection: {
+        state: "connected",
+      },
+    };
+
+    Sockudo.prototype.subscribe.call(fakeSockudo, "market:btc", {
+      rewind: { count: 2 },
+    });
+
+    expect(fakeChannel.tagsFilter).toBeNull();
+    expect(fakeChannel.rewind).toEqual({ count: 2 });
+    expect(fakeChannel.subscribe).toHaveBeenCalledTimes(1);
   });
 });
