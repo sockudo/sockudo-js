@@ -11,6 +11,7 @@ export interface DefaultConfig {
   wssPort: number;
   wsPath: string;
   httpHost: string;
+  wsHost: string;
   httpPort: number;
   httpsPort: number;
   httpPath: string;
@@ -36,12 +37,13 @@ const Defaults: DefaultConfig = {
   wssPort: 443,
   wsPath: "",
   // DEPRECATED: SockJS fallback parameters
-  httpHost: "sockjs.sockudo.com",
+  httpHost: "sockjs.sockudo.io",
+  wsHost: "ws.sockudo.io",
   httpPort: 80,
   httpsPort: 443,
   httpPath: "/sockudo",
   // DEPRECATED: Stats
-  stats_host: "stats.sockudo.com",
+  stats_host: "stats.sockudo.io",
   // DEPRECATED: Other settings
   authEndpoint: "/sockudo/auth",
   authTransport: "fetch",

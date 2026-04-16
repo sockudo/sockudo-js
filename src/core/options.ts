@@ -29,7 +29,7 @@ export interface Options {
   userAuthentication?: UserAuthenticationOptions;
   presenceHistory?: PresenceHistoryOptions;
 
-  cluster: string;
+  cluster?: string;
   protocolVersion?: number;
   wireFormat?: "json" | "messagepack" | "msgpack" | "protobuf" | "proto";
   deltaCompression?: DeltaOptions;
@@ -62,8 +62,8 @@ export function validateOptions(options) {
   if (options == null) {
     throw "You must pass an options object";
   }
-  if (options.cluster == null) {
-    throw "Options object must provide a cluster";
+  if (options.cluster == null && options.wsHost == null) {
+    throw "Options object must provide a cluster or wsHost";
   }
   if ("disableStats" in options) {
     Logger.warn(
