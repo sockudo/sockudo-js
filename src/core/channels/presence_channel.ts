@@ -304,20 +304,16 @@ export default class PresenceChannel extends PrivateChannel {
     }
 
     const data = await response.json();
-    const self = this;
-
     return {
       ...data,
       hasNext(): boolean {
         return !!data.has_more && !!data.next_cursor;
       },
-      next(): Promise<PresenceHistoryPage> {
+      next: (): Promise<PresenceHistoryPage> => {
         if (!data.has_more || !data.next_cursor) {
-          return Promise.reject(
-            new Error("No more pages available"),
-          );
+          return Promise.reject(new Error("No more pages available"));
         }
-        return self.fetchHistoryPage(config, {
+        return this.fetchHistoryPage(config, {
           ...params,
           cursor: data.next_cursor,
         });

@@ -126,6 +126,83 @@ channel.bind("sockudo:rewind_complete", (payload) => {
 });
 ```
 
+## Mutable Messages (Release 4.3)
+
+Protocol V2 mutable messages use explicit action events:
+
+- `sockudo:message.update`
+- `sockudo:message.delete`
+- `sockudo:message.append`
+
+Client interpretation rules:
+
+- `message.update`: replace local state with the full payload in the event
+- `message.delete`: treat the event as the latest visible version; the payload may be `null`
+- `message.append`: concatenate the incoming string fragment onto your current local string state
+
+If you do not already have a string base for `message.append`, fetch the latest visible message first and seed local state before applying more appends.
+
+The JS SDK exports helpers for this:
+
+```ts
+import Sockudo, {
+  isMutableMessageEvent,
+  reduceMutableMessageEvent,
+  type MutableMessageState,
+} from "@sockudo/client";
+
+const client = new Sockudo("app-key", {
+  wsHost: "127.0.0.1",
+  wsPort: 6001,
+  forceTLS: false,
+  protocolVersion: 2,
+});
+
+let state: MutableMessageState | null = null;
+
+client.subscribe("chat:room-1").bind_global((eventName, payload) => {
+  if (!isMutableMessageEvent(payload)) {
+    return;
+  }
+  state = reduceMutableMessageEvent(state, payload);
+  console.log(state?.messageSerial, state?.action, state?.data);
+});
+```
+
+Version-history consumption:
+
+- consume `GET /apps/{appId}/channels/{channelName}/messages/{messageSerial}` when you need the latest visible state
+- consume `GET /apps/{appId}/channels/{channelName}/messages/{messageSerial}/versions` when you need preserved historical versions
+- process versions in `version_serial` order; the last version is the winning visible state
+
+Proxy-backed read helpers:
+
+Configure `versionedMessages.endpoint` when you want first-class helper methods without exposing server credentials in the client. The endpoint should accept a JSON POST body of the form `{ channel, messageSerial?, params?, action }` and proxy the request to Sockudo's REST API using server-side HMAC auth.
+
+```ts
+const client = new Sockudo("app-key", {
+  cluster: "local",
+  wsHost: "127.0.0.1",
+  wsPort: 6001,
+  forceTLS: false,
+  versionedMessages: {
+    endpoint: "/sockudo/versioned",
+  },
+});
+
+const channel = client.subscribe("chat:room-1");
+
+const latest = await channel.getMessage("message-serial");
+const versions = await channel.getMessageVersions("message-serial", {
+  limit: 20,
+  direction: "oldest_first",
+});
+const history = await channel.channelHistory({
+  limit: 50,
+  direction: "newest_first",
+});
+```
+
 ## React Hooks
 
 Install the framework peer dependencies:

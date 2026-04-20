@@ -22,12 +22,23 @@ export type {
   ChannelSubscriptionOptions,
   SubscriptionRewind,
 } from './types/core/channels/channel';
+export type {
+  MutableMessageAction,
+  MutableMessageVersionInfo,
+  MutableMessageState,
+} from './types/core/versioned_messages';
 
 export { default as Channel } from './types/core/channels/channel';
 export { default as PresenceChannel } from './types/core/channels/presence_channel';
 export { default as Members } from './types/core/channels/members';
 export { default as Runtime } from './types/runtimes/interface';
 export { default as ConnectionManager } from './types/core/connection/connection_manager';
+export {
+  isMutableMessageEvent,
+  getMutableMessageInfo,
+  reduceMutableMessageEvent,
+  reduceMutableMessageEvents,
+} from './types/core/versioned_messages';
 
 export {
   FilterNode,

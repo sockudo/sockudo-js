@@ -17,6 +17,12 @@ export interface PresenceHistoryOptions {
   headersProvider?: () => Record<string, string>;
 }
 
+export interface VersionedMessagesOptions {
+  endpoint: string;
+  headers?: Record<string, string>;
+  headersProvider?: () => Record<string, string>;
+}
+
 export interface Options {
   activityTimeout?: number;
 
@@ -28,6 +34,7 @@ export interface Options {
   channelAuthorization?: ChannelAuthorizationOptions;
   userAuthentication?: UserAuthenticationOptions;
   presenceHistory?: PresenceHistoryOptions;
+  versionedMessages?: VersionedMessagesOptions;
 
   cluster: string;
   protocolVersion?: number;

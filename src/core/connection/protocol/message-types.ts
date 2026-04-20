@@ -44,6 +44,7 @@ interface SockudoEvent {
   event: string;
   channel?: string;
   data?: any;
+  name?: string;
   user_id?: string;
   stream_id?: string;
   message_id?: string;

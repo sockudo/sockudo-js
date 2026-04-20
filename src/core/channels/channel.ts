@@ -17,6 +17,7 @@ import {
   prefixedInternal,
   isInternalEvent,
 } from "../protocol_prefix";
+import type { VersionedMessagesOptions } from "../options";
 
 export type SubscriptionRewind =
   | number
@@ -30,6 +31,51 @@ export interface ChannelSubscriptionOptions {
   delta?: { enabled?: boolean; algorithm?: "fossil" | "xdelta3" };
   events?: string[];
   rewind?: SubscriptionRewind;
+}
+
+export interface ChannelHistoryParams {
+  direction?: "newest_first" | "oldest_first";
+  limit?: number;
+  cursor?: string;
+  start_serial?: number;
+  end_serial?: number;
+  start_time_ms?: number;
+  end_time_ms?: number;
+}
+
+export interface ChannelHistoryPage {
+  items: Array<Record<string, unknown>>;
+  direction: string;
+  limit: number;
+  has_more: boolean;
+  next_cursor?: string | null;
+  bounds: Record<string, unknown>;
+  continuity: Record<string, unknown>;
+  stream_state?: Record<string, unknown>;
+  hasNext(): boolean;
+  next(): Promise<ChannelHistoryPage>;
+}
+
+export interface MessageVersionsParams {
+  direction?: "newest_first" | "oldest_first";
+  limit?: number;
+  cursor?: string;
+}
+
+export interface GetMessageResponse {
+  channel: string;
+  item: Record<string, unknown>;
+}
+
+export interface ListMessageVersionsResponse {
+  channel: string;
+  direction: string;
+  limit: number;
+  has_more: boolean;
+  next_cursor?: string | null;
+  items: Array<Record<string, unknown>>;
+  hasNext(): boolean;
+  next(): Promise<ListMessageVersionsResponse>;
 }
 
 /**
@@ -151,6 +197,49 @@ export default class Channel extends EventsDispatcher {
    */
   getDeltaSettings(): ChannelDeltaSettings | null {
     return this.deltaSettings;
+  }
+
+  async channelHistory(
+    params: ChannelHistoryParams = {},
+  ): Promise<ChannelHistoryPage> {
+    const config = this.sockudo.config.versionedMessages;
+    if (!config?.endpoint) {
+      throw new Error(
+        "versionedMessages.endpoint must be configured to use channelHistory(). " +
+          "This endpoint should proxy requests to the Sockudo server REST API.",
+      );
+    }
+    return this.fetchChannelHistoryPage(config, params);
+  }
+
+  async getMessage(messageSerial: string): Promise<GetMessageResponse> {
+    const config = this.sockudo.config.versionedMessages;
+    if (!config?.endpoint) {
+      throw new Error(
+        "versionedMessages.endpoint must be configured to use getMessage(). " +
+          "This endpoint should proxy requests to the Sockudo server REST API.",
+      );
+    }
+    const response = await this.fetchVersioned(config, {
+      channel: this.name,
+      messageSerial,
+      action: "get_message",
+    });
+    return response as GetMessageResponse;
+  }
+
+  async getMessageVersions(
+    messageSerial: string,
+    params: MessageVersionsParams = {},
+  ): Promise<ListMessageVersionsResponse> {
+    const config = this.sockudo.config.versionedMessages;
+    if (!config?.endpoint) {
+      throw new Error(
+        "versionedMessages.endpoint must be configured to use getMessageVersions(). " +
+          "This endpoint should proxy requests to the Sockudo server REST API.",
+      );
+    }
+    return this.fetchMessageVersionsPage(config, messageSerial, params);
   }
 
   /** Skips authorization, since public channels don't require it.
@@ -277,6 +366,87 @@ export default class Channel extends EventsDispatcher {
         }
       },
     );
+  }
+
+  private async fetchVersioned(
+    config: VersionedMessagesOptions,
+    body: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...config.headers,
+      ...config.headersProvider?.(),
+    };
+
+    const response = await fetch(config.endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      credentials: "same-origin",
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `Versioned message request failed (${response.status}): ${text}`,
+      );
+    }
+
+    return response.json() as Promise<Record<string, unknown>>;
+  }
+
+  private async fetchChannelHistoryPage(
+    config: VersionedMessagesOptions,
+    params: ChannelHistoryParams,
+  ): Promise<ChannelHistoryPage> {
+    const data = await this.fetchVersioned(config, {
+      channel: this.name,
+      params,
+      action: "channel_history",
+    });
+    return {
+      ...(data as Omit<ChannelHistoryPage, "hasNext" | "next">),
+      hasNext(): boolean {
+        return !!data.has_more && !!data.next_cursor;
+      },
+      next: (): Promise<ChannelHistoryPage> => {
+        if (!data.has_more || !data.next_cursor) {
+          return Promise.reject(new Error("No more pages available"));
+        }
+        return this.fetchChannelHistoryPage(config, {
+          ...params,
+          cursor: data.next_cursor as string,
+        });
+      },
+    };
+  }
+
+  private async fetchMessageVersionsPage(
+    config: VersionedMessagesOptions,
+    messageSerial: string,
+    params: MessageVersionsParams,
+  ): Promise<ListMessageVersionsResponse> {
+    const data = await this.fetchVersioned(config, {
+      channel: this.name,
+      messageSerial,
+      params,
+      action: "get_message_versions",
+    });
+    return {
+      ...(data as Omit<ListMessageVersionsResponse, "hasNext" | "next">),
+      hasNext(): boolean {
+        return !!data.has_more && !!data.next_cursor;
+      },
+      next: (): Promise<ListMessageVersionsResponse> => {
+        if (!data.has_more || !data.next_cursor) {
+          return Promise.reject(new Error("No more pages available"));
+        }
+        return this.fetchMessageVersionsPage(config, messageSerial, {
+          ...params,
+          cursor: data.next_cursor as string,
+        });
+      },
+    };
   }
 
   /** Sends an unsubscription request. For internal use only. */

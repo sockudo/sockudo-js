@@ -330,6 +330,9 @@ function envelopeToEvent(
     data: parseEventData(messageData.data),
     rawMessage,
   };
+  if (typeof messageData.name === "string") {
+    decodedEvent.name = messageData.name;
+  }
   if (messageData.user_id) {
     decodedEvent.user_id = messageData.user_id;
   }

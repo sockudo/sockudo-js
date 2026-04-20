@@ -458,12 +458,10 @@ export default class Sockudo {
     if (options) {
       if (
         typeof options === "object" &&
-        (
-          "filter" in options ||
+        ("filter" in options ||
           "delta" in options ||
           "events" in options ||
-          "rewind" in options
-        )
+          "rewind" in options)
       ) {
         if (options.filter) {
           channel.tagsFilter = options.filter;
@@ -559,7 +557,10 @@ export default class Sockudo {
     );
   }
 
-  setRecoveryPosition(channelName: string, position: RecoveryPosition | null): void {
+  setRecoveryPosition(
+    channelName: string,
+    position: RecoveryPosition | null,
+  ): void {
     if (position == null) {
       this.channelPositions.delete(channelName);
       return;
@@ -584,7 +585,7 @@ function normalizeResumeRecoveredChannel(value: any) {
 }
 
 function normalizeResumeFailedData(data: any): ResumeFailedChannel {
-  const value = typeof data === "string" ? JSON.parse(data) : data ?? {};
+  const value = typeof data === "string" ? JSON.parse(data) : (data ?? {});
   return {
     channel: value.channel ?? "",
     code: value.code ?? "",
@@ -603,7 +604,7 @@ function normalizeResumeFailedData(data: any): ResumeFailedChannel {
 }
 
 function normalizeResumeSuccessData(data: any): ResumeSuccessData {
-  const value = typeof data === "string" ? JSON.parse(data) : data ?? {};
+  const value = typeof data === "string" ? JSON.parse(data) : (data ?? {});
   return {
     recovered: Array.isArray(value.recovered)
       ? value.recovered.map(normalizeResumeRecoveredChannel)
@@ -615,7 +616,7 @@ function normalizeResumeSuccessData(data: any): ResumeSuccessData {
 }
 
 function normalizeRewindCompleteData(data: any): RewindCompleteData {
-  const value = typeof data === "string" ? JSON.parse(data) : data ?? {};
+  const value = typeof data === "string" ? JSON.parse(data) : (data ?? {});
   return {
     historical_count:
       typeof value.historical_count === "number" ? value.historical_count : 0,

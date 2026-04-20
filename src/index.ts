@@ -1,8 +1,13 @@
 // Main entry point for @sockudo/client
-// Only exports the Sockudo class as default
-// For Filter imports, use: import { Filter } from '@sockudo/client/filter'
 
 import SockudoClass from "./core/sockudo";
+export * from "./core/versioned_messages";
+export type {
+  ChannelHistoryPage,
+  ChannelHistoryParams,
+  GetMessageResponse,
+  ListMessageVersionsResponse,
+  MessageVersionsParams,
+} from "./core/channels/channel";
 
-// Export Sockudo as default only
 export default SockudoClass;

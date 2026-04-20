@@ -1,4 +1,8 @@
-import { Options, PresenceHistoryOptions } from "./options";
+import {
+  Options,
+  PresenceHistoryOptions,
+  VersionedMessagesOptions,
+} from "./options";
 import Defaults from "./defaults";
 import {
   ChannelAuthorizationHandler,
@@ -46,6 +50,7 @@ export interface Config {
   nacl?: nacl;
   timelineParams?: any;
   presenceHistory?: PresenceHistoryOptions;
+  versionedMessages?: VersionedMessagesOptions;
 }
 
 // getConfig mainly sets the defaults for the options that are not provided
@@ -86,6 +91,9 @@ export function getConfig(opts: Options, sockudo): Config {
   }
   if ("presenceHistory" in opts) {
     config.presenceHistory = opts.presenceHistory;
+  }
+  if ("versionedMessages" in opts) {
+    config.versionedMessages = opts.versionedMessages;
   }
 
   return config;
