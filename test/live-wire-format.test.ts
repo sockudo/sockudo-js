@@ -91,6 +91,75 @@ const createLiveClient = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
+const rawSocketUrl = (protocolVersion: 2 | 7) => {
+  const url = new URL("ws://127.0.0.1:6001/app/app-key");
+  url.searchParams.set("protocol", String(protocolVersion));
+  url.searchParams.set("client", "js-live");
+  url.searchParams.set("version", "1.0.0");
+  if (protocolVersion === 2) {
+    url.searchParams.set("format", "json");
+  }
+  return url.toString();
+};
+
+const openRawSocket = async (protocolVersion: 2 | 7): Promise<WebSocket> => {
+  const socket = new WebSocket(rawSocketUrl(protocolVersion));
+
+  await new Promise<void>((resolve, reject) => {
+    const onOpen = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (event: Event) => {
+      cleanup();
+      reject(new Error(`WebSocket failed to open: ${event.type}`));
+    };
+    const cleanup = () => {
+      socket.removeEventListener("open", onOpen);
+      socket.removeEventListener("error", onError);
+    };
+
+    socket.addEventListener("open", onOpen, { once: true });
+    socket.addEventListener("error", onError, { once: true });
+  });
+
+  return socket;
+};
+
+const waitForRawMessage = async (
+  socket: WebSocket,
+  timeoutMs: number,
+): Promise<Record<string, unknown>> =>
+  new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Timed out waiting for websocket message"));
+    }, timeoutMs);
+
+    const onMessage = (event: MessageEvent) => {
+      cleanup();
+      try {
+        resolve(JSON.parse(String(event.data)) as Record<string, unknown>);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    const onClose = () => {
+      cleanup();
+      reject(new Error("Socket closed while waiting for websocket message"));
+    };
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      socket.removeEventListener("message", onMessage);
+      socket.removeEventListener("close", onClose);
+    };
+
+    socket.addEventListener("message", onMessage, { once: true });
+    socket.addEventListener("close", onClose, { once: true });
+  });
+
 const connectAndWaitForSubscription = async (
   client: InstanceType<typeof Sockudo>,
   channelName: string,
@@ -145,6 +214,71 @@ beforeAll(async () => {
 });
 
 describe("live wire format integration", () => {
+  it("uses control-frame heartbeats for idle raw v2 websocket connections", async () => {
+    if (!liveTestsEnabled()) {
+      return;
+    }
+
+    const socket = await openRawSocket(2);
+    try {
+      const handshake = await waitForRawMessage(socket, 3000);
+      expect(handshake.event).toBe("sockudo:connection_established");
+
+      await expect(waitForRawMessage(socket, 8000)).rejects.toThrow(
+        "Timed out waiting for websocket message",
+      );
+    } finally {
+      socket.close();
+    }
+  }, 15000);
+
+  it("returns metadata-free fallback pong frames for explicit raw v2 ping", async () => {
+    if (!liveTestsEnabled()) {
+      return;
+    }
+
+    const socket = await openRawSocket(2);
+    try {
+      const handshake = await waitForRawMessage(socket, 3000);
+      expect(handshake.event).toBe("sockudo:connection_established");
+
+      socket.send(JSON.stringify({ event: "sockudo:ping", data: {} }));
+      const pong = await waitForRawMessage(socket, 3000);
+      expect(pong.event).toBe("sockudo:pong");
+      expect(pong.message_id).toBeUndefined();
+      expect(pong.serial).toBeUndefined();
+      expect(pong.stream_id).toBeUndefined();
+    } finally {
+      socket.close();
+    }
+  });
+
+  it("keeps raw v1 protocol ping behavior", async () => {
+    if (!liveTestsEnabled()) {
+      return;
+    }
+
+    const socket = await openRawSocket(7);
+    let closed = false;
+    socket.addEventListener("close", () => {
+      closed = true;
+    });
+
+    try {
+      const handshake = await waitForRawMessage(socket, 3000);
+      expect(handshake.event).toBe("pusher:connection_established");
+
+      const ping = await waitForRawMessage(socket, 6000);
+      expect(ping.event).toBe("pusher:ping");
+
+      socket.send(JSON.stringify({ event: "pusher:pong", data: {} }));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(closed).toBe(false);
+    } finally {
+      socket.close();
+    }
+  }, 12000);
+
   it("connects with the selected wire format and receives a published event", async () => {
     if (!liveTestsEnabled()) {
       return;
