@@ -11,7 +11,7 @@ export interface Options {
     authorizer?: ChannelAuthorizerGenerator;
     channelAuthorization?: ChannelAuthorizationOptions;
     userAuthentication?: UserAuthenticationOptions;
-    cluster: string;
+    cluster?: string;
     deltaCompression?: DeltaOptions;
     protocolVersion?: number;
     messageDeduplication?: boolean;

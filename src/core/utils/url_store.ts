@@ -3,7 +3,7 @@
  */
 
 const urlStore = {
-  baseUrl: "https://docs.sockudo.com",
+  baseUrl: "https://docs.sockudo.io",
   urls: {
     authenticationEndpoint: {
       path: "/server/security#authentication",

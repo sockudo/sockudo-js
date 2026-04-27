@@ -104,7 +104,7 @@ function getHttpHost(opts: Options): string {
     return opts.httpHost;
   }
   if (opts.cluster) {
-    return `sockjs-${opts.cluster}.sockudo.com`;
+    return `sockjs-${opts.cluster}.sockudo.io`;
   }
   return Defaults.httpHost;
 }
@@ -113,11 +113,14 @@ function getWebsocketHost(opts: Options): string {
   if (opts.wsHost) {
     return opts.wsHost;
   }
-  return getWebsocketHostFromCluster(opts.cluster);
+  if (opts.cluster) {
+    return getWebsocketHostFromCluster(opts.cluster);
+  }
+  return Defaults.wsHost;
 }
 
 function getWebsocketHostFromCluster(cluster: string): string {
-  return `ws-${cluster}.sockudo.com`;
+  return `ws-${cluster}.sockudo.io`;
 }
 
 function shouldUseTLS(opts: Options): boolean {
