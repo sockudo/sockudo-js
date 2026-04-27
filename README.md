@@ -86,6 +86,12 @@ const sockudoV2 = new Sockudo("app-key", {
 });
 ```
 
+Protocol V2 heartbeat behavior:
+
+- the server uses native WebSocket ping/pong frames for automatic liveness
+- browser-style runtimes that do not expose native ping APIs may still use lightweight `sockudo:ping` / `sockudo:pong` fallback messages for client-side activity checks
+- fallback heartbeat messages are not part of V2 broadcast continuity and do not carry `message_id`, `serial`, or `stream_id`
+
 ## Features
 
 - Pusher-protocol-compatible client surface
