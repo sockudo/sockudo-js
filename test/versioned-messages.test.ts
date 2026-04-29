@@ -8,6 +8,7 @@ import {
   reduceMutableMessageEvents,
 } from "../src/core/versioned_messages";
 import type { SockudoEvent } from "../src/core/connection/protocol/message-types";
+import { setProtocolVersion } from "../src/core/protocol_prefix";
 
 function mutableEvent(
   action: "message.update" | "message.delete" | "message.append",
@@ -45,6 +46,7 @@ function makeChannel() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  setProtocolVersion(7);
 });
 
 describe("versioned message helpers", () => {
@@ -188,5 +190,119 @@ describe("versioned message helpers", () => {
     expect(page.items).toHaveLength(1);
     expect(page.hasNext()).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes annotations through the configured proxy endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ annotationSerial: "ann:1" }),
+    });
+    vi.stubGlobal("fetch", fetchMock as any);
+
+    const channel = makeChannel();
+    const payload = await channel.publishAnnotation("msg:1", {
+      type: "reactions:distinct.v1",
+      name: "like",
+      clientId: "user-1",
+    });
+
+    expect(payload.annotationSerial).toBe("ann:1");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      action: "publish_annotation",
+      channel: "chat:room-1",
+      messageSerial: "msg:1",
+      annotation: {
+        type: "reactions:distinct.v1",
+        name: "like",
+        clientId: "user-1",
+      },
+    });
+  });
+
+  it("deletes annotations through the configured proxy endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        annotationSerial: "ann:2",
+        deletedAnnotationSerial: "ann:1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock as any);
+
+    const channel = makeChannel();
+    const payload = await channel.deleteAnnotation("msg:1", "ann:1", "1.1");
+
+    expect(payload.deletedAnnotationSerial).toBe("ann:1");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      action: "delete_annotation",
+      channel: "chat:room-1",
+      messageSerial: "msg:1",
+      annotationSerial: "ann:1",
+      socketId: "1.1",
+    });
+  });
+
+  it("lists annotation events through the configured proxy endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        channel: "chat:room-1",
+        messageSerial: "msg:1",
+        limit: 1,
+        hasMore: false,
+        nextCursor: null,
+        items: [{ action: "annotation.create", serial: "ann:1" }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock as any);
+
+    const channel = makeChannel();
+    const payload = await channel.listAnnotations("msg:1", {
+      type: "reactions:distinct.v1",
+      limit: 1,
+    });
+
+    expect(payload.items).toHaveLength(1);
+    expect(payload.hasNext()).toBe(false);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      action: "list_annotations",
+      channel: "chat:room-1",
+      messageSerial: "msg:1",
+      params: {
+        type: "reactions:distinct.v1",
+        limit: 1,
+      },
+    });
+  });
+
+  it("emits annotation summaries and raw annotation actions", () => {
+    setProtocolVersion(2);
+    const channel = makeChannel();
+    const summary = vi.fn();
+    const raw = vi.fn();
+
+    channel.bind("message.summary", summary);
+    channel.bind("annotation.create", raw);
+
+    channel.handleEvent({
+      event: "sockudo_internal:message",
+      data: {
+        action: "message.summary",
+        serial: "msg:1",
+        annotations: { summary: {} },
+      },
+    } as any);
+    channel.handleEvent({
+      event: "sockudo_internal:annotation",
+      data: {
+        action: "annotation.create",
+        serial: "ann:1",
+        messageSerial: "msg:1",
+        type: "reactions:distinct.v1",
+      },
+    } as any);
+
+    expect(summary).toHaveBeenCalledTimes(1);
+    expect(raw).toHaveBeenCalledTimes(1);
   });
 });

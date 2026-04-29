@@ -31,6 +31,7 @@ export interface ChannelSubscriptionOptions {
   delta?: { enabled?: boolean; algorithm?: "fossil" | "xdelta3" };
   events?: string[];
   rewind?: SubscriptionRewind;
+  annotationSubscribe?: boolean;
 }
 
 export interface ChannelHistoryParams {
@@ -76,6 +77,57 @@ export interface ListMessageVersionsResponse {
   items: Array<Record<string, unknown>>;
   hasNext(): boolean;
   next(): Promise<ListMessageVersionsResponse>;
+}
+
+export interface PublishAnnotationRequest {
+  type: string;
+  name?: string;
+  clientId?: string;
+  socketId?: string;
+  count?: number;
+  data?: unknown;
+  encoding?: string | null;
+}
+
+export interface PublishAnnotationResponse {
+  annotationSerial: string;
+}
+
+export interface DeleteAnnotationResponse {
+  annotationSerial: string;
+  deletedAnnotationSerial: string;
+}
+
+export interface AnnotationEventsParams {
+  type?: string;
+  limit?: number;
+  fromSerial?: string;
+  socketId?: string;
+}
+
+export interface AnnotationEvent {
+  action: "annotation.create" | "annotation.delete";
+  id?: string;
+  serial: string;
+  messageSerial: string;
+  type: string;
+  name?: string;
+  clientId?: string;
+  count?: number;
+  data?: unknown;
+  encoding?: string;
+  timestamp: number;
+}
+
+export interface AnnotationEventsResponse {
+  channel: string;
+  messageSerial: string;
+  limit: number;
+  hasMore: boolean;
+  nextCursor?: string | null;
+  items: AnnotationEvent[];
+  hasNext(): boolean;
+  next(): Promise<AnnotationEventsResponse>;
 }
 
 /**
@@ -148,6 +200,7 @@ export default class Channel extends EventsDispatcher {
   eventsFilter: string[] | null;
   deltaSettings: ChannelDeltaSettings | null;
   rewind: SubscriptionRewind | null;
+  annotationSubscribe: boolean;
 
   constructor(name: string, sockudo: Sockudo) {
     super(function (event, _data) {
@@ -163,6 +216,7 @@ export default class Channel extends EventsDispatcher {
     this.eventsFilter = null;
     this.deltaSettings = null;
     this.rewind = null;
+    this.annotationSubscribe = false;
   }
 
   /**
@@ -242,6 +296,62 @@ export default class Channel extends EventsDispatcher {
     return this.fetchMessageVersionsPage(config, messageSerial, params);
   }
 
+  async publishAnnotation(
+    messageSerial: string,
+    annotation: PublishAnnotationRequest,
+  ): Promise<PublishAnnotationResponse> {
+    const config = this.sockudo.config.versionedMessages;
+    if (!config?.endpoint) {
+      throw new Error(
+        "versionedMessages.endpoint must be configured to use publishAnnotation(). " +
+          "This endpoint should proxy requests to the Sockudo server REST API.",
+      );
+    }
+    const response = await this.fetchVersioned(config, {
+      channel: this.name,
+      messageSerial,
+      annotation,
+      action: "publish_annotation",
+    });
+    return response as unknown as PublishAnnotationResponse;
+  }
+
+  async deleteAnnotation(
+    messageSerial: string,
+    annotationSerial: string,
+    socketId?: string,
+  ): Promise<DeleteAnnotationResponse> {
+    const config = this.sockudo.config.versionedMessages;
+    if (!config?.endpoint) {
+      throw new Error(
+        "versionedMessages.endpoint must be configured to use deleteAnnotation(). " +
+          "This endpoint should proxy requests to the Sockudo server REST API.",
+      );
+    }
+    const response = await this.fetchVersioned(config, {
+      channel: this.name,
+      messageSerial,
+      annotationSerial,
+      socketId,
+      action: "delete_annotation",
+    });
+    return response as unknown as DeleteAnnotationResponse;
+  }
+
+  async listAnnotations(
+    messageSerial: string,
+    params: AnnotationEventsParams = {},
+  ): Promise<AnnotationEventsResponse> {
+    const config = this.sockudo.config.versionedMessages;
+    if (!config?.endpoint) {
+      throw new Error(
+        "versionedMessages.endpoint must be configured to use listAnnotations(). " +
+          "This endpoint should proxy requests to the Sockudo server REST API.",
+      );
+    }
+    return this.fetchAnnotationEventsPage(config, messageSerial, params);
+  }
+
   /** Skips authorization, since public channels don't require it.
    *
    * @param {(...args: any[]) => any} callback
@@ -283,6 +393,15 @@ export default class Channel extends EventsDispatcher {
       this.handleSubscriptionSucceededEvent(event);
     } else if (eventName === prefixedInternal("subscription_count")) {
       this.handleSubscriptionCountEvent(event);
+    } else if (
+      eventName === prefixedInternal("message") &&
+      data?.action === "message.summary"
+    ) {
+      const metadata: Metadata = {};
+      this.emit("message.summary", data, metadata);
+    } else if (eventName === prefixedInternal("annotation") && data?.action) {
+      const metadata: Metadata = {};
+      this.emit(data.action, data, metadata);
     } else if (!isInternalEvent(eventName)) {
       const metadata: Metadata = {};
       this.emit(eventName, data, metadata);
@@ -351,6 +470,10 @@ export default class Channel extends EventsDispatcher {
 
           if (this.rewind !== null) {
             subscribeData.rewind = this.rewind;
+          }
+
+          if (this.annotationSubscribe) {
+            subscribeData.modes = ["SUBSCRIBE", "ANNOTATION_SUBSCRIBE"];
           }
 
           // Add per-subscription delta settings if present
@@ -444,6 +567,34 @@ export default class Channel extends EventsDispatcher {
         return this.fetchMessageVersionsPage(config, messageSerial, {
           ...params,
           cursor: data.next_cursor as string,
+        });
+      },
+    };
+  }
+
+  private async fetchAnnotationEventsPage(
+    config: VersionedMessagesOptions,
+    messageSerial: string,
+    params: AnnotationEventsParams,
+  ): Promise<AnnotationEventsResponse> {
+    const data = await this.fetchVersioned(config, {
+      channel: this.name,
+      messageSerial,
+      params,
+      action: "list_annotations",
+    });
+    return {
+      ...(data as Omit<AnnotationEventsResponse, "hasNext" | "next">),
+      hasNext(): boolean {
+        return !!data.hasMore && !!data.nextCursor;
+      },
+      next: (): Promise<AnnotationEventsResponse> => {
+        if (!data.hasMore || !data.nextCursor) {
+          return Promise.reject(new Error("No more pages available"));
+        }
+        return this.fetchAnnotationEventsPage(config, messageSerial, {
+          ...params,
+          fromSerial: data.nextCursor as string,
         });
       },
     };
