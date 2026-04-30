@@ -451,6 +451,12 @@ export default class Sockudo {
    * @example
    * // Disable delta compression for a specific channel
    * sockudo.subscribe('my-channel', { delta: { enabled: false } });
+   *
+   * @example
+   * // Opt into raw annotation.create / annotation.delete events.
+   * // This sends modes: ["SUBSCRIBE", "ANNOTATION_SUBSCRIBE"] because explicit
+   * // modes replace defaults on the server.
+   * sockudo.subscribe('my-channel', { annotationSubscribe: true });
    */
   subscribe(channel_name: string, options?: any | ChannelSubscriptionOptions) {
     const channel = this.channels.add(channel_name, this);
@@ -461,7 +467,8 @@ export default class Sockudo {
         ("filter" in options ||
           "delta" in options ||
           "events" in options ||
-          "rewind" in options)
+          "rewind" in options ||
+          "annotationSubscribe" in options)
       ) {
         if (options.filter) {
           channel.tagsFilter = options.filter;
@@ -474,6 +481,9 @@ export default class Sockudo {
         }
         if ("rewind" in options) {
           channel.rewind = options.rewind ?? null;
+        }
+        if ("annotationSubscribe" in options) {
+          channel.annotationSubscribe = !!options.annotationSubscribe;
         }
       } else {
         channel.tagsFilter = options;
