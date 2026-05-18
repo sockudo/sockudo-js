@@ -279,7 +279,7 @@ export default class Channel extends EventsDispatcher {
       messageSerial,
       action: "get_message",
     });
-    return response as GetMessageResponse;
+    return response as unknown as GetMessageResponse;
   }
 
   async getMessageVersions(
